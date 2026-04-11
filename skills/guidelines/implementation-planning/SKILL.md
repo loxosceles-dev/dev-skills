@@ -27,53 +27,94 @@ docs/planning/implementation/
     post-implementation.md # Validation, handoff, troubleshooting
 ```
 
+(User preferences for plan location override this default.)
+
 ### Phases vs Steps
 
 **Phase** = One document containing related work
 - Each phase has its own file: `phase-N-descriptive-name.md`
-- Keep phases under 500 lines (LLMs struggle with longer documents)
+- Keep phases under 500 lines — this ensures each phase fits in LLM context alongside the code being edited
 - Phases are executed in numerical order (0, 1, 2, ...)
 - Renaming a phase file requires updating all references in index.md
 
-**Step** = One unit of work within a phase
+**Step** = One small unit of work within a phase
 - Each step is numbered: Step N.1, Step N.2, etc. (where N is the phase number)
 - Steps within a phase are executed in order
 - Each step should be:
-  - Completable in 15-60 minutes
+  - Completable in a single focused action (a few minutes, not hours)
   - Independently testable
   - Committable (leaves codebase in working state)
 
 **Example:**
 ```
 phase-1-api-endpoints.md contains:
-  - Step 1.1: Define TypeScript interfaces
-  - Step 1.2: Create Lambda handler
-  - Step 1.3: Add API Gateway route
-  - Step 1.4: Test endpoint
+  - Step 1.1: Write failing test for GET /items
+  - Step 1.2: Run test to verify it fails
+  - Step 1.3: Implement GET /items handler
+  - Step 1.4: Run test to verify it passes
+  - Step 1.5: Commit
 
 phase-2-database-setup.md contains:
-  - Step 2.1: Define DynamoDB table
-  - Step 2.2: Create table in CDK
-  - Step 2.3: Add IAM permissions
+  - Step 2.1: Write failing test for table access
+  - Step 2.2: Run test to verify it fails
+  - Step 2.3: Define DynamoDB table in CDK
+  - Step 2.4: Run test to verify it passes
+  - Step 2.5: Commit
 ```
 
 ### Numbering Rules
 
-**Phase numbering:**
-- Sequential: 0, 1, 2, 3, ...
+- Phase numbers are sequential: 0, 1, 2, 3, ...
 - Phase 0 is always prerequisites/setup
-- Phases must be executed in order
-
-**Step numbering:**
-- Format: `{phase}.{step}` — Phase 1 steps: 1.1, 1.2, 1.3
+- Step format: `{phase}.{step}` — Phase 1 steps: 1.1, 1.2, 1.3
 - Steps must be executed in order within a phase
-- Step numbers indicate execution order within their phase
-
-**General rules:**
-- Phase numbers indicate execution order (must be sequential: 0, 1, 2, ...)
-- Phase 0 is for prerequisites/setup
 - Use `post-implementation.md` for validation and handoff
-- Keep phase documents under 500 lines (LLMs struggle with longer files)
+
+---
+
+## File Mapping
+
+Before defining steps in a phase, list the files that will be created or modified and what each one is responsible for. This locks in decomposition decisions upfront.
+
+```markdown
+**Files:**
+- Create: `src/handlers/get-items.ts` — GET /items Lambda handler
+- Create: `tests/handlers/get-items.test.ts` — handler tests
+- Modify: `infrastructure/api.ts:45-60` — add route
+```
+
+Rules:
+- Exact file paths always
+- One clear responsibility per file
+- Files that change together should live together
+- In existing codebases, follow established patterns
+
+---
+
+## Step Content
+
+Steps must contain everything an executing agent needs — no placeholders, no hand-waving.
+
+**Required in every code step:**
+- Full code (not stubs or pseudocode)
+- Exact commands to run with expected output
+- What to verify before moving on
+
+**These are plan failures — never write them:**
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation"
+- "Write tests for the above" (without actual test code)
+- "Similar to Step N.1" (repeat the content — the agent may load phases independently)
+- Steps that describe what to do without showing how
+
+**TDD rhythm** (when applicable):
+1. Write the failing test
+2. Run it to confirm it fails
+3. Write minimal implementation to pass
+4. Run it to confirm it passes
+5. Commit
+
+Not every step needs TDD (config changes, CDK infra, etc.), but code steps should follow this rhythm when possible.
 
 ---
 
@@ -88,7 +129,7 @@ The `index.md` serves as the single navigation and progress tracking hub:
 
 ---
 
-## 🎯 Quick Navigation
+## Quick Navigation
 
 | Phase | Document |
 |-------|----------|
@@ -107,13 +148,11 @@ Brief description of what this implementation achieves.
 Before starting:
 - Requirement 1
 - Requirement 2
-- Requirement 3
 
 ### Implementation Principles
 
 - Key principle 1
 - Key principle 2
-- Non-negotiable constraint
 
 ---
 
@@ -128,31 +167,21 @@ Before starting:
 ### Phase 1: {Name}
 - [ ] Step 1.1: Description
 - [ ] Step 1.2: Description
-
----
-
-## Related Documents
-
-- Links to related planning docs
-- Links to architecture patterns
 ```
 
 ---
 
 ## Phase Document Structure
 
-Each phase document should follow this structure:
-
 ```markdown
 ## Phase {N}: {Phase Name}
 
 **Goal**: Single sentence describing what this phase achieves.
 
-**Duration**: Estimated time
-
-### Context
-
-Why this phase is needed. Background information.
+**Files:**
+- Create: `exact/path/to/file.ts`
+- Modify: `exact/path/to/existing.ts`
+- Test: `tests/exact/path/to/test.ts`
 
 ---
 
@@ -160,19 +189,11 @@ Why this phase is needed. Background information.
 
 **Goal**: What this step accomplishes.
 
-**Tasks**:
-1. Specific task
-2. Specific task
+[Full code, exact commands, expected output]
 
-**Implementation**:
+**Verify**: How to confirm this step worked.
 
-Detailed instructions, code examples, commands.
-
-**Testing**:
-
-How to verify this step worked.
-
-**Commit**: `git commit -m "Step {N}.{X}: [brief description]"`
+**Commit**: `type: description`
 
 ---
 
@@ -181,16 +202,10 @@ How to verify this step worked.
 ...
 ```
 
-**Important:**
-- Step numbers must match phase number: Phase 1 has steps 1.1, 1.2, 1.3, etc.
-- Each step should be small enough to complete in 15-60 minutes
-- Each step should be testable independently
-- Each step should leave codebase in committable state
+**Limits:**
 - Keep total phase document under 500 lines
-  - If approaching 500 lines, the phase is too big and unmanageable
-  - Don't arbitrarily split the document — reorganize the work
-  - Split into multiple focused phases with clear goals
-  - Each phase should have a single, focused goal
+- If approaching 500 lines, the phase is too big — split into multiple focused phases
+- Don't arbitrarily split — reorganize the work so each phase has a single, focused goal
 
 ---
 
@@ -198,122 +213,89 @@ How to verify this step worked.
 
 ### The Golden Rule: ALWAYS FOLLOW THE PLAN
 
-**Never write code without updating the plan first.**
+**Never write code without checking the plan first.**
 
-The implementation plan is the single source of truth for what gets built and how. During implementation:
+The executing agent loads only `index.md` + the current phase. It never needs the whole plan in context.
 
-1. **Read the current step** in index.md
-2. **Follow the step exactly** as documented in the phase file
-3. **If you need to deviate** → STOP and enter planning mode
+1. **Read index.md** — know which step you're on
+2. **Load the current phase** — follow the step exactly
+3. **If you need to deviate** → STOP and enter Planning Mode
 
 ### Planning Mode
 
 When you discover:
 - The current step won't work as written
 - A better approach exists
-- Something needs refactoring
 - A dependency is missing
 - An assumption was wrong
 
-**Immediately enter planning mode:**
+**Immediately enter Planning Mode:**
 
 1. **STOP writing code**
 2. **Discuss the issue** with the developer
 3. **Update the plan** with the new approach
-4. **Check all other steps** — does this change affect them?
+4. **Check downstream steps** — does this change affect them?
 5. **Verify against principles** — does this follow core principles and patterns?
-6. **Check dependencies** — does this break earlier steps or block later steps?
-7. **Update index.md** — reflect any step changes in progress tracking
-8. **Get confirmation** before resuming implementation
-
-### Plan Updates
+6. **Update index.md** — reflect any changes in progress tracking
+7. **Get confirmation** before resuming implementation
 
 When updating the plan:
-- **Be specific**: Document exactly what changes and why
-- **Update dependencies**: Note which other steps are affected
-- **Preserve history**: Don't delete old approaches, mark them as superseded
-- **Update index.md**: Keep progress tracking current
+- Be specific: document exactly what changes and why
+- Don't delete old approaches — mark them as superseded
+- Keep index.md current
+
+---
+
+## Alignment Check
+
+A lightweight sanity check after each step, before committing. Catches drift — changes that work in isolation but don't serve the feature's goals.
+
+### Procedure
+
+1. **Skim index.md** — Overview, Implementation Principles, current phase goal. Quick check, not a deep read.
+2. **Review the uncommitted diff** against three questions:
+   - **Goal alignment**: Does this move toward the feature goal, or did it drift?
+   - **Architecture fit**: Does it follow project patterns?
+   - **Scope creep**: Did this step introduce anything not in the plan?
+3. **Verdict**:
+   - ✅ **On track** — commit.
+   - 🟡 **Minor drift** — note the concern in index.md, commit, review at phase end.
+   - 🔴 **Off track** — do NOT commit. Enter Planning Mode.
+
+Rules:
+- Targets only the current step's diff, not the entire codebase.
+- Not a full code review — just a directional check.
+- 🟡 must include a one-line note on the step's checkbox in index.md.
 
 ---
 
 ## Phase Completion
 
 When a phase is complete:
-- [ ] All steps in phase executed successfully
-- [ ] All alignment checks passed (resolve any 🟡 flags before moving on)
+- [ ] All steps executed successfully
+- [ ] All alignment checks passed (resolve any 🟡 flags)
 - [ ] All tests passing
-- [ ] Changes committed with clear messages
+- [ ] Changes committed
 - [ ] Index.md updated to next phase
 - [ ] Prerequisites for next phase verified
 
-No separate completion checklist in phase documents — tracking happens only in index.md.
+---
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, suggest breaking into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
 
 ---
 
 ## Creating a New Implementation Plan
 
-1. **Create index.md first** — Establish navigation and progress tracking
-2. **Break into phases** — Each phase = one document, completable in 1-3 days
-3. **Break phases into steps** — Each step completable in 15-60 minutes
-4. **Number sequentially** — Phases: 0, 1, 2, ... | Steps: 1.1, 1.2, ... | 2.1, 2.2, ...
-5. **Keep phases manageable** — If a phase document approaches 500 lines, it's too big
-6. **Verify prerequisites** — Document what must exist before starting
-
-## During Implementation
-
-1. **Check index.md** — Know exactly which step you're on
-2. **Read the step** — Understand what needs to be done
-3. **Execute the step** — Follow instructions exactly
-4. **Test the step** — Verify it worked
-5. **Alignment check** — Run the sanity check (see below)
-6. **Commit the step** — Save progress with clear commit message
-7. **Update index.md** — Check off the completed step
-8. **Move to next step** — Repeat
-
-**Important:** Steps must be executed in order. Phases must be executed in order.
-
----
-
-## Alignment Check
-
-A lightweight sanity check after testing each step and before committing. The goal is to catch drift — changes that work in isolation but don't serve the feature's goals or violate project patterns.
-
-This runs every step, so keep it focused on the latest change. Previous steps have already passed their own checks.
-
-### Procedure
-
-1. **Re-read the feature's `index.md`** — specifically the Overview, Implementation Principles, and the current phase's goal. This is a skim, not a deep read — you already have context from prior steps.
-2. **Review the uncommitted diff** (`git diff`) against three questions:
-   - **Goal alignment**: Does this change move us toward the feature goal stated in `index.md`, or did it drift into unrelated work?
-   - **Architecture fit**: Does it follow the project's established patterns? (Reference `core-principles` and any stack-specific skills.)
-   - **Scope creep**: Did this step introduce anything not described in the plan? Refactors, "while I'm here" fixes, or premature abstractions count.
-3. **Verdict** — one of:
-   - ✅ **On track** — proceed to commit.
-   - 🟡 **Minor drift** — note the concern, proceed to commit, flag it for review at phase completion.
-   - 🔴 **Off track** — do NOT commit. Enter planning mode immediately.
-
-### Rules
-
-- The check targets only the current step's diff, not the entire codebase.
-- Don't turn this into a full code review. The `code-reviewer` agent handles that separately. This is a directional check: are we still building the right thing?
-- If the agent performing the work cannot objectively assess its own output, delegate the check to the `code-reviewer` agent with the feature's `index.md` as context.
-- A 🟡 verdict must include a one-line note appended to the step's checkbox in `index.md` (e.g., `- [x] Step 2.3: Create handler 🟡 added unplanned error type — revisit at phase end`).
-- A 🔴 verdict follows the existing **Planning Mode** rules: stop, discuss, update the plan, get confirmation.
-
-## Reordering Work
-
-**To reorder steps within a phase:**
-1. Update step numbers in phase document
-2. Update step references in index.md
-3. Verify implementation dependencies
-4. Check no steps are blocked by reordering
-
-**To insert a new phase:**
-1. Create new phase file with appropriate number
-2. Renumber subsequent phase files
-3. Update step numbers inside renumbered phase files
-4. Update all references in index.md
-5. Verify overall implementation order still makes sense
+1. **Scope check** — one plan per subsystem
+2. **Create index.md** — navigation and progress tracking
+3. **Break into phases** — each phase = one document, one focused goal
+4. **Map files per phase** — exact paths, clear responsibilities
+5. **Break phases into steps** — small, testable, committable, with full code
+6. **Self-review** — check spec coverage, placeholder scan, type consistency across phases
+7. **Number sequentially** — Phases: 0, 1, 2 | Steps: 1.1, 1.2 | 2.1, 2.2
 
 ---
 
@@ -333,13 +315,17 @@ This runs every step, so keep it focused on the latest change. Previous steps ha
 
 ---
 
-## Key Principles
+## Reordering Work
 
-- **Fail fast**: Validate prerequisites before starting
-- **Incremental**: Each step should be independently testable
-- **Reversible**: Each step ends with git commit for easy reset
-- **Explicit**: No assumptions, document everything
-- **Trackable**: Clear progress indicators at all times
+**To reorder steps within a phase:**
+1. Update step numbers in phase document
+2. Update references in index.md
+3. Verify no steps are blocked by reordering
+
+**To insert a new phase:**
+1. Create new phase file
+2. Renumber subsequent phase files and their internal step numbers
+3. Update all references in index.md
 
 ---
 
