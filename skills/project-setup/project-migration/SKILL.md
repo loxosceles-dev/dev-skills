@@ -78,12 +78,11 @@ Work through the plan category by category. After each category, commit the chan
   ```bash
   PROJECT=<project-name>
   mkdir -p ~/.devcontainer-state/cache/${PROJECT}/claude
-  mkdir -p ~/.devcontainer-state/cache/${PROJECT}/kiro/agents
   mkdir -p ~/.devcontainer-state/cache/${PROJECT}/kiro/settings
   ```
 - **Verify MCP server config.** Check that `~/.devcontainer-state/ai/mcp/servers.json` exists. If not, warn the user to copy from `servers.json.template` and add credentials.
 - **Verify devcontainer scripts.** The setup uses two scripts:
-  - `post_create.sh` — runs once after container creation (validation, symlinks, git identity, agent seeding, skills restore)
+  - `post_create.sh` — runs once after container creation (validation, symlinks, git identity, skills restore)
   - `post_start.sh` — runs on every container start (Claude CLI install/update, Claude settings copy, MCP server distribution)
   - `devcontainer.json` must have both `postCreateCommand` and `postStartCommand`.
 
@@ -111,7 +110,7 @@ Work through the plan category by category. After each category, commit the chan
 - `.gitignore`: merge — append missing entries from the fragment, never remove existing entries.
 - `.npmrc`, `.envrc`, `.env_TEMPLATE`: copy if missing, ask if existing version differs.
 
-#### Skills & Agents
+#### Skills
 
 - **Use the `--agent` flag to limit installation to only the agents we use:**
   ```bash
@@ -121,9 +120,7 @@ Work through the plan category by category. After each category, commit the chan
 - The `skills/` directory is always created by the installer as a symlink convenience folder. It cannot be prevented — just gitignore it.
 - `.gitignore` must include: `.agents/`, `.claude/skills/`, `.kiro/skills/`, `skills/`
 - Ask about additional third-party skills (e.g., `anthropics/claude-code`, `browser-use/browser-use`).
-- **Kiro agents** are seeded from `devcontainer-state/ai/agents/kiro/` into `~/.kiro/agents/` by `post_create.sh` on first run. They persist in the per-project kiro cache mount.
-- **Codex agents** are symlinked from `devcontainer-state/ai/agents/codex/` into `.github/agents/` by `post_create.sh` on every container start. `.github/agents/` is gitignored.
-- Both agent mounts are overridable via `KIRO_AGENTS` and `CODEX_AGENTS` env vars in `.devcontainer/.env`.
+- Steering files (mounted ro at `~/.kiro/steering/` from `~/.devcontainer-state/ai/steering/`) handle skill auto-discovery. No agent configs needed — skills cover all workflows.
 
 #### Husky & Lint-Staged
 

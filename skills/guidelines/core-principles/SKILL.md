@@ -35,22 +35,45 @@ function buildResourceName(type: string, name: string): string {
 
 **When impurity is necessary** (AWS calls, DB access): Keep scope minimal, pass clients as parameters when feasible.
 
-## 2. Avoid Fallbacks for Environment Variables
+## 2. No Silent Defaults — Fail Fast, Fail Loud
 
-Prefer explicit failures over silent fallbacks to catch misconfigurations early.
+Almost never use fallback values. Missing configuration, missing data fields, and unexpected states should cause immediate, loud failures with meaningful error messages.
 
 ```javascript
-// ⚠️ Avoid when possible
+// ❌ Silent fallback — masks misconfiguration
 const region = process.env.AWS_REGION || 'us-east-1';
 
-// ✅ Preferred
+// ✅ Fail fast with actionable error
 if (!process.env.AWS_REGION) {
   throw new Error('AWS_REGION is required. Set in environment or SSM.');
 }
 const region = process.env.AWS_REGION;
 ```
 
-**Exception**: Reasonable defaults for truly optional configuration are acceptable.
+```python
+# ❌ Silent default — hides corrupt data
+source = status.get("scrape_source", "")
+
+# ✅ Required field — let it fail if missing
+source = status["scrape_source"]
+```
+
+**The one exception — user-facing resilience**: API endpoints and frontend code must not crash entirely because of a single bad record or missing non-essential field. In these cases:
+- Catch the error at the **loop/item level** (not the field level)
+- **Log the full error** with identifying context (pk, sk, etc.)
+- **Skip the bad record**, serve the rest
+- Never scatter `.get("field", "")` defaults across every field — that silently hides data bugs
+
+```python
+# ✅ Correct: required fields fail loud, but one bad record doesn't crash the endpoint
+for item in items:
+    try:
+        result.append(format_item(item))  # format_item uses item["field"] — no defaults
+    except (KeyError, ValueError):
+        logging.exception("Skipping corrupt item: pk=%s sk=%s", item.get("pk"), item.get("sk"))
+```
+
+**When in doubt** whether something is "non-essential": stop and discuss. The default stance is fail loud.
 
 ## 3. Code Structure and Organization
 
@@ -90,11 +113,12 @@ const paramPath = `/${PROJECT_ID}/${environment}/api-key`;
 
 ## 5. Error Handling
 
-Balance between failing fast and graceful degradation based on context.
+The default is to fail fast and loud. Graceful degradation is the rare exception, not the norm.
 
-- **Throw**: Missing configuration, invalid setup, critical dependencies
-- **Log + Continue**: UI enhancements, optional features, non-blocking operations
-- **Always provide context**: Whether throwing or logging, include actionable information
+- **Throw/crash**: Missing configuration, missing required data fields, invalid setup, critical dependencies. This is the default.
+- **Log + skip item**: Only at user-facing boundaries (API responses, frontend rendering) where one bad item must not take down the whole response. Catch at the item level, log with context, skip the item.
+- **Never**: Scatter silent defaults (`.get("field", "")`) to avoid errors. That hides bugs.
+- **Always**: Include actionable context in errors — what record, what field, what was expected.
 
 ## 6. Variable Naming
 
