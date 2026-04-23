@@ -123,10 +123,12 @@ Numbered list of specific changes with file references
 
 ## Responding to PR Review Comments
 
-When fixing issues raised in PR review comments, reply to each comment thread with the commit hash that addresses it. Format:
+When fixing issues raised in PR review comments, reply to each comment thread with the commit hash and a brief explanation. Format:
 
 ```
 Fixed in <commit-hash>
+
+[Brief explanation of what changed and why, when non-obvious]
 ```
 
 This closes the feedback loop and lets the reviewer verify the fix without searching through commits.
