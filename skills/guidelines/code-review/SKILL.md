@@ -123,7 +123,13 @@ Numbered list of specific changes with file references
 
 ## Responding to PR Review Comments
 
-When fixing issues raised in PR review comments, reply to each comment thread with the commit hash and a brief explanation. Format:
+### Workflow
+
+1. **Triage** — Read all comments first. For each one, write a brief description of what needs to change (one line is enough). This becomes your working checklist.
+2. **Work one by one** — Pick a comment, fix it, test it, commit it. Then move to the next. Do not batch fixes across comments.
+3. **Reply** — After all comments are addressed, reply to each comment thread with the corresponding commit hash and a brief explanation.
+
+### Reply format
 
 ```
 Fixed in <commit-hash>
@@ -131,7 +137,11 @@ Fixed in <commit-hash>
 [Brief explanation of what changed and why, when non-obvious]
 ```
 
-This closes the feedback loop and lets the reviewer verify the fix without searching through commits.
+### Why this matters
+
+- Each comment maps to exactly one commit, so the reviewer can verify each fix independently
+- The checklist with brief descriptions keeps you focused and prevents drift
+- Committing after testing (not before) ensures every commit is clean and deployable
 
 ---
 

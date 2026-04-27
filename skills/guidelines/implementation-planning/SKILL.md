@@ -253,9 +253,10 @@ A lightweight sanity check after each step, before committing. Catches drift —
 ### Procedure
 
 1. **Skim index.md** — Overview, Implementation Principles, current phase goal. Quick check, not a deep read.
-2. **Review the uncommitted diff** against three questions:
+2. **Review the uncommitted diff** against these questions:
    - **Goal alignment**: Does this move toward the feature goal, or did it drift?
    - **Architecture fit**: Does it follow project patterns?
+   - **Architecture docs**: Does this project have architecture or design docs (e.g. `docs/architecture/`, ADRs, design decisions)? If so, does this change contradict any recorded decision? Only check docs relevant to the changed area — don't re-read everything.
    - **Scope creep**: Did this step introduce anything not in the plan?
 3. **Verdict**:
    - ✅ **On track** — commit.

@@ -12,66 +12,30 @@ How to format and create git commits, branches, and PRs when helping developers.
 
 ---
 
-## 🚨 CRITICAL: Security Check FIRST
+## 🚨 Pre-Commit Gates
 
-**Before analyzing ANY commits, check for sensitive files:**
+Before generating commit messages, run the `pre-commit-check` skill against all staged files. This covers:
+1. **Security** — credentials, secrets, `.env` files (delegates to `security-checklist`)
+2. **Code quality** — DRY, naming, error handling, dead code (references `core-principles`)
+3. **Breakage risks** — build, tests, Lambda invocations, missing env vars
 
-**NEVER commit these files:**
+**Do not proceed to commit grouping until all three gates pass.**
 
-**Environment & Configuration:**
-- `.env` (any variant: `.env`, `.env.local`, `.env.prod`, `.env.dev`, `.env.test`, `.env.*`)
-- `.envrc`, `.env.example` (if contains real values)
-- `config.json`, `secrets.json`, `credentials.json`
-- `.npmrc`, `.pypirc` (if contains auth tokens)
+After running the gates, briefly confirm the result and which path was used:
+- "Pre-commit check passed (via `pre-commit-check` skill) — no security issues, code quality OK, build verified."
+- "Pre-commit check passed (inline fallback — `pre-commit-check` skill not found) — no secrets in staged files."
 
-**AWS & Cloud Credentials:**
-- `credentials`, `config` (in `.aws/` directory)
-- `serviceAccount.json`, `gcloud-credentials.json`
-- `terraform.tfvars` (if contains secrets)
-- `pulumi.*.yaml` (if contains secrets)
+### Security Fallback
 
-**Private Keys & Certificates:**
-- `*.pem`, `*.key`, `*.p12`, `*.pfx`
-- `id_rsa`, `id_ed25519`, `*.pub` (private keys only)
-- `*.crt` (if paired with private key)
-- `keystore.jks`, `truststore.jks`
+If `pre-commit-check` or `security-checklist` are unavailable, apply these rules directly. **Never skip security.**
 
-**Database & API:**
-- Files with connection strings containing passwords
-- API keys, access tokens, OAuth secrets
-- Database dumps with real data
-- `*.sql` files with production data
+Scan staged files for:
+- `.env` files with real values (any variant: `.env`, `.env.local`, `.env.prod`, `.env.*`)
+- Hardcoded secrets, API keys, tokens, passwords in code
+- AWS credentials, private keys (`*.pem`, `*.key`), connection strings
+- `.git-credentials`, `.netrc`, credential JSON files
 
-**Other Sensitive:**
-- `.git-credentials`
-- `.netrc`
-- `*.log` files with sensitive data
-- Backup files with credentials (`*.bak`, `*.backup`)
-
-**If detected:**
-1. **STOP immediately**
-2. **Alert developer with 🚨 WARNING**
-3. **List the sensitive files found**
-4. **Refuse to proceed until removed from staging**
-5. **Remind developer to add to `.gitignore`**
-
-**Example alert:**
-```
-🚨 SECURITY WARNING: Sensitive files detected!
-
-The following files should NEVER be committed:
-- infrastructure/.env.prod (environment file with credentials)
-- .aws/credentials (AWS access keys)
-- config/database.json (database password)
-
-ACTION REQUIRED:
-1. Remove from staging: git reset HEAD <file>
-2. Add to .gitignore if not already present
-3. Verify no secrets were previously committed
-4. Consider rotating any exposed credentials
-
-I cannot proceed with commit suggestions until these are resolved.
-```
+**If found: STOP immediately, alert the developer, refuse to proceed until resolved.**
 
 ---
 
@@ -143,7 +107,7 @@ refactor: Extract validation logic to separate function
 
 When developer asks for commit help:
 
-1. **🚨 Security Check** - Verify no `.env` files or credentials in changes (STOP if found)
+1. **🚨 Pre-commit gates** - Run `pre-commit-check` skill on staged files (security, quality, breakage)
 2. **Analyze changes** - Run git commands to see actual changes (don't guess)
 3. **Group logically** - Organize by purpose, not file type
 4. **Generate messages** - Follow chosen format (simple or conventional)
@@ -240,7 +204,7 @@ git checkout -b task-1-2-database
 
 ## Guidelines
 
-- **Security first**: Always check for `.env` files and credentials before proceeding
+- **Pre-commit gates first**: Always run `pre-commit-check` before proceeding
 - **Analyze first**: Always run `git status` and `git diff` to see actual changes
 - **Logical grouping**: Group by feature/fix, not by file type
 - **No line ranges**: Just list files, not specific line numbers
@@ -252,7 +216,7 @@ git checkout -b task-1-2-database
 
 ## What NOT to Do
 
-❌ **NEVER commit .env files or credentials** - STOP and alert if detected
+❌ **NEVER commit without running pre-commit gates** - STOP and run `pre-commit-check` first
 ❌ Don't stage files (developer does this)
 ❌ Don't commit (developer does this)
 ❌ Don't push (developer controls when)
