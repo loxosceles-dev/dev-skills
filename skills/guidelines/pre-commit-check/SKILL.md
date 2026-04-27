@@ -41,17 +41,20 @@ Report issues. Minor style nits can be noted but should not block the commit.
 
 ## Gate 3: Will It Break?
 
-Before committing, ask: **what will break after push that I can catch right now?**
+Before committing, ask: **what will break after push that unit tests won't catch?**
+
+Unit tests run automatically — this gate is about the things they miss: runtime environment issues, missing permissions, misconfigured infrastructure, broken deployments.
 
 **Always:**
 - Does the code build? Run the build.
 - Do existing tests pass? Run them.
 - Are there linter errors? Run the linter.
 
-**Infrastructure code (Lambdas, CDK, SST):**
+**Infrastructure code (Lambdas, CDK, SST) — this is where most post-push failures come from:**
 - Deploy to dev and invoke the Lambda directly.
 - Check CloudWatch for missing environment variables, permission errors, or import failures.
 - Verify any new SSM parameters or secrets actually exist in the target environment.
+- A Lambda can pass every unit test and still fail on invoke. Always invoke it.
 
 **Frontend:**
 - Does it render without console errors?
