@@ -49,8 +49,8 @@ function UserDashboard() {
 ```
 
 **Guidelines**:
-- Keep files reasonably short, typically not more than 200 lines
-- Extract complex logic to custom hooks or utility functions
+- Keep files focused on a single responsibility. A cohesive module with a simple interface can exceed 200 lines (up to ~400) — depth beats line count. Only split when the file has multiple unrelated concerns, not to hit a length target.
+- Extract complex logic to custom hooks or utility functions when it serves a separate concern
 - Avoid nested ternaries and complex conditionals in JSX
 
 ```tsx
