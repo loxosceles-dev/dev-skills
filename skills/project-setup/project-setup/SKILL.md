@@ -34,7 +34,8 @@ New projects are created from blueprints stored at `loxosceles/project-blueprint
 7. **Pause on version mismatches**: If a tool (create-next-app, SST, etc.) has a new major version compared to what the blueprint specifies, stop and ask: "Should I evaluate the upgrade or use the pinned version?"
 8. **Never silently modify fragments**: If a fragment doesn't work with current tool versions, report the conflict and ask.
 9. **Run verification**: Execute all verification commands at the end. All must pass.
-10. **Install skills**:
+10. **GitHub Copilot instructions**: Copy `fragments/common/github/copilot-instructions.md` to `.github/copilot-instructions.md` and `fragments/common/github/copilot/review.md` to `.github/copilot/review.md`. These provide code quality guidelines for Copilot Chat and PR reviews.
+11. **Install skills**:
     - Run `npx skills add loxosceles/ai-dev --agent claude-code github-copilot codex kiro-cli -y` and ask about additional third-party skills.
     - Pre-create all host mount targets (Docker creates missing sources as root-owned, breaking permissions):
       ```bash
@@ -45,8 +46,8 @@ New projects are created from blueprints stored at `loxosceles/project-blueprint
     - The `skills/` directory is always created by the installer as a symlink convenience folder. It cannot be prevented — just gitignore it.
     - `.gitignore` must include: `.agents/`, `.claude/skills/`, `.kiro/skills/`, `skills/`
     - Steering files (mounted ro at `~/.kiro/steering/` from `~/.devcontainer-state/ai/steering/`) handle skill auto-discovery. No agent configs needed — skills cover all workflows.
-11. **Verify MCP server config**: Check that `~/.devcontainer-state/ai/mcp/servers.json` exists. If not, warn the user to copy from `servers.json.template`. MCP servers are distributed to all agents (Kiro, Claude, Amazon Q) by `post_start.sh` on every container start.
-12. **Verify devcontainer scripts**: The setup uses two scripts:
+12. **Verify MCP server config**: Check that `~/.devcontainer-state/ai/mcp/servers.json` exists. If not, warn the user to copy from `servers.json.template`. MCP servers are distributed to all agents (Kiro, Claude, Amazon Q) by `post_start.sh` on every container start.
+13. **Verify devcontainer scripts**: The setup uses two scripts:
     - `post_create.sh` — runs once after container creation (validation, symlinks, git identity, skills restore)
     - `post_start.sh` — runs on every container start (Claude CLI install/update, Claude settings copy, MCP server distribution)
 

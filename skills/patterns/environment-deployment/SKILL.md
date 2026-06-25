@@ -160,6 +160,24 @@ npm run deploy:dev
 
 ---
 
+## CORS: Local Shares Dev Backend
+
+Because local development hits the deployed dev API, **CORS must allow both origins** in the dev environment:
+
+```bash
+# .env.dev (used by dev Lambda)
+CORS_ALLOWED_ORIGINS=http://localhost:3010,https://dev.project.example.com
+```
+
+```bash
+# .env.prod (only the production domain)
+CORS_ALLOWED_ORIGINS=https://project.example.com
+```
+
+**Rule**: When configuring CORS for any dev backend (API Gateway, Lambda), always include `http://localhost:<port>` alongside the deployed dev frontend domain. Without this, local development gets blocked by CORS while the deployed dev frontend works fine.
+
+---
+
 ## Resource Isolation
 
 **Separate Resources Per Environment**:

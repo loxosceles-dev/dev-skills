@@ -217,9 +217,7 @@ git checkout -b task-1-2-database
 ## What NOT to Do
 
 ❌ **NEVER commit without running pre-commit gates** - STOP and run `pre-commit-check` first
-❌ Don't stage files (developer does this)
-❌ Don't commit (developer does this)
-❌ Don't push (developer controls when)
+❌ Don't stage, commit, or push **unless the developer explicitly asks you to execute** — by default, present the plan and wait for approval
 ❌ Don't modify files unless asked
 ❌ Don't guess at changes - always analyze actual diffs
 

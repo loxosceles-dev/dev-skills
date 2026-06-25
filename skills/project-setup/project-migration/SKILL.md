@@ -122,6 +122,12 @@ Work through the plan category by category. After each category, commit the chan
 - Ask about additional third-party skills (e.g., `anthropics/claude-code`, `browser-use/browser-use`).
 - Steering files (mounted ro at `~/.kiro/steering/` from `~/.devcontainer-state/ai/steering/`) handle skill auto-discovery. No agent configs needed — skills cover all workflows.
 
+#### GitHub Copilot Instructions
+
+- Copy `fragments/common/github/copilot-instructions.md` to `.github/copilot-instructions.md`.
+- Copy `fragments/common/github/copilot/review.md` to `.github/copilot/review.md`.
+- These are standard across all projects — always overwrite without asking.
+
 #### Husky & Lint-Staged
 
 - If not configured, initialize: `npx husky init`, set pre-commit hook to `pnpm exec lint-staged`.
