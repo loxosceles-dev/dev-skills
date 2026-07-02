@@ -155,6 +155,24 @@ Group: Documentation - separate from code
 
 ## Branches and PRs
 
+**When to branch:**
+
+Commit on `dev` directly:
+- Project setup, scaffolding
+- Docker/devcontainer configuration
+- Linting, formatting config
+- Small bug fixes (a few lines)
+- Dependency updates
+- Minor config tweaks
+
+Create a feature branch off `dev`:
+- Full features (new functionality)
+- Large bug fixes (multiple files, complex logic)
+- Major refactors
+- Anything spanning multiple logical commits or sessions
+
+Rule of thumb: If the change is a few LOC and self-contained, it goes on `dev`. If it needs its own PR with review context, it gets a branch. When in doubt, ask.
+
 **Branch naming:**
 - Use descriptive, kebab-case names with type prefix: `feat/user-profile`, `fix/auth-timeout`
 - **NEVER reference planning phases**: No `phase-1`, `step-2-3`, etc.
