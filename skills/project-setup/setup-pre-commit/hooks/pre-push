@@ -1,0 +1,64 @@
+#!/bin/sh
+# Pre-push skill checklist.
+# Prompts for confirmation before any push — surfaces policy reminders
+# so they can't be silently skipped.
+
+REMOTE="$1"
+URL="$2"
+
+# Determine target branches from stdin (format: <local ref> <local sha> <remote ref> <remote sha>)
+while read local_ref local_sha remote_ref remote_sha; do
+  BRANCH=$(echo "$remote_ref" | sed 's|refs/heads/||')
+
+  # Hard block: never push directly to main
+  if [ "$BRANCH" = "main" ]; then
+    echo ""
+    echo "🚫 BLOCKED: Direct push to 'main' is not allowed."
+    echo ""
+    echo "   main is updated only by merging a PR from dev."
+    echo "   Open a PR from dev → main instead."
+    echo ""
+    exit 1
+  fi
+done
+
+# Skill checklist — printed before every push to prompt review
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  📋  PRE-PUSH SKILL CHECKLIST"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  branch-policy"
+echo "    • Is this a feat/fix/chore branch (not dev or main)?"
+echo "    • Is the PR target dev, not main?"
+echo ""
+echo "  git-commits"
+echo "    • No phase/step/task references in any commit message?"
+echo "    • All messages follow  <type>: <Description>  format?"
+echo ""
+echo "  pre-commit-check"
+echo "    • Security gate passed (no secrets, no .env files)?"
+echo "    • Build and tests pass locally?"
+echo ""
+echo "  Skills: .kiro/skill-sets/coding/{branch-policy,git-commits,pre-commit-check}"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Require explicit confirmation
+# In non-interactive environments (CI, piped input) this is skipped automatically
+if [ -t 1 ]; then
+  printf "  All good? Proceed with push? [y/N] "
+  read -r answer < /dev/tty
+  case "$answer" in
+    [Yy]*) ;;
+    *)
+      echo ""
+      echo "  Push aborted. Review the checklist above and try again."
+      echo ""
+      exit 1
+      ;;
+  esac
+fi
+
+echo ""

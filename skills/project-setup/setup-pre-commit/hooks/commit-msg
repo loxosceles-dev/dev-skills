@@ -1,0 +1,66 @@
+#!/bin/sh
+# Enforce commit message format: <type>: <description>
+# - Single line only (no multi-line commits)
+# - Valid types: feat, fix, refactor, docs, style, test, chore
+# - Imperative form, lowercase type, no trailing period
+# - No planning phase/step/task references
+
+MSG_FILE="$1"
+MSG=$(head -1 "$MSG_FILE")
+
+# Allow merge commits
+if echo "$MSG" | grep -qE "^Merge "; then
+  exit 0
+fi
+
+# Allow revert commits
+if echo "$MSG" | grep -qE "^Revert "; then
+  exit 0
+fi
+
+# Check single line (no body)
+CONTENT_LINES=$(grep -v "^#" "$MSG_FILE" | grep -v "^$" | wc -l)
+if [ "$CONTENT_LINES" -gt 1 ]; then
+  echo "❌ Commit message must be a single line (no body)."
+  echo "   Got $CONTENT_LINES lines."
+  echo ""
+  echo "   Format: <type>: <description>"
+  echo "   Types: feat, fix, refactor, docs, style, test, chore"
+  exit 1
+fi
+
+# Check format: type: description
+if ! echo "$MSG" | grep -qE "^(feat|fix|refactor|docs|style|test|chore): .+"; then
+  echo "❌ Commit message must match: <type>: <description>"
+  echo "   Got: $MSG"
+  echo ""
+  echo "   Valid types: feat, fix, refactor, docs, style, test, chore"
+  echo "   Example: feat: Add user authentication flow"
+  exit 1
+fi
+
+# Check no trailing period
+if echo "$MSG" | grep -qE "\.$"; then
+  echo "❌ Commit message must not end with a period."
+  echo "   Got: $MSG"
+  exit 1
+fi
+
+# Block planning phase/step/task references
+# Rationale: implementation plans are never committed to the repo, so references
+# like "Phase 2", "Step 1.3", or "Task 4" are meaningless in git history —
+# they refer to docs that don't exist in any remote record. Describe WHAT
+# changed, not WHERE in a plan it falls.
+if echo "$MSG" | grep -qiE "\b(phase[-_ ]?[0-9]|step[-_ ]?[0-9]|task[-_ ]?[0-9])\b"; then
+  echo "❌ Commit message must not reference planning phases, steps, or tasks."
+  echo "   Got: $MSG"
+  echo ""
+  echo "   Why: Implementation plans are not committed to the repo."
+  echo "   A 'Phase 2' reference points to a doc that doesn't exist in git"
+  echo "   history — it's meaningless to anyone reading the log later."
+  echo ""
+  echo "   Instead, describe WHAT changed:"
+  echo "   ✅  feat: Add user authentication flow"
+  echo "   ❌  feat: Phase 2 - Add user authentication flow"
+  exit 1
+fi
