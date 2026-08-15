@@ -68,6 +68,20 @@ If the user says "commit this" or "let's commit" while on `dev`, do NOT push. As
 
 If you're about to create a PR with `--base main` from a feature branch, **STOP** — the base must be `dev`.
 
+## Devcontainer — SSH and AWS
+
+**SSH keys are mounted directly** from `~/.ssh/contexts/personal/` into `/home/vscode/.ssh`. There is no agent forwarding — `SSH_AUTH_SOCK` is irrelevant. `git push` works because the key file is there, not because of a forwarded socket.
+
+Verify before first push:
+```bash
+ssh -T git@github.com    # must say "Hi loxosceles!"
+aws sts get-caller-identity    # must return account info
+```
+
+If SSH fails: check `~/.ssh/contexts/personal/id_ed25519` exists on the host and `known_hosts` has the github.com entry. If AWS fails: check `~/.aws/contexts/<name>/credentials` has a valid `[default]` profile. Which context is mounted is in `.devcontainer/docker-compose.yml`.
+
+---
+
 ## Common Mistakes to Avoid
 
 1. **Starting work without a branch** — Always check `git branch --show-current` before coding. If it says `dev`, create a branch first.
