@@ -140,23 +140,31 @@ The finalizer always runs — after `APPROVED` the planner stage is a no-op (not
 
 ---
 
-## Invocation
+## Entry Points
 
-### Against an existing document
+There are two ways into the pipeline. Same stages, different starting point.
 
-> "Critic-review `docs/planning/{topic}.md` — start a discussion thread"
+### Entry point 1 — planner agent (proactive, standard path)
 
-Kick off a critic subagent with `critic-lens.md`. It writes the first entry to the discussion file. If score < 4, respond:
+Switch to the `planner` agent. Ask it to design or spec something. It writes the document and **automatically kicks off the full pipeline** — you never have to ask for a review. The task isn't done until the gate is cleared.
 
-> "Respond to the critic on `{topic}`"
+```
+you → planner agent → [writes doc] → critic → dev-response ⟲ → planner (arbitrate) → finalizer
+```
 
-Kick off a dev subagent with `dev-respond.md`. Repeat until `APPROVED` or 3 passes.
+### Entry point 2 — any agent (reactive, existing doc)
 
-### For a new document (full pipeline)
+You're in any agent — lead-dev, or wherever. You have a doc that was written earlier and want it reviewed:
 
-> "Draft `{topic}`, then run it through the critic-dialogue pipeline"
+> "Pass `docs/planning/intake-design.md` to the critic"
 
-Use the full subagent stage config above.
+The agent reads this skill and kicks off the pipeline **from the critic stage** — no writer stage, the doc already exists.
+
+```
+existing doc → critic → dev-response ⟲ → planner (arbitrate) → finalizer
+```
+
+Both paths use the same subagent stage config. The only difference is whether a writer stage runs first.
 
 ---
 
