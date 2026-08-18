@@ -12,15 +12,13 @@ npx -y skills add loxosceles/ai-dev --agent claude-code github-copilot codex kir
 
 ```
 skills/
-  guidelines/     — Strict rules. Follow exactly.
-  patterns/       — Reference implementations. Learn and adapt, don't copy.
-  project-setup/  — Project scaffolding and migration tools.
+  {skill-name}/   — flat, one dir per skill (same as guitarizta-skills and local-skills)
+    SKILL.md
+    scripts/      ← where applicable
 
 agents/
   kiro/           — Kiro agent JSON configs (synced into containers via post_create.sh)
 ```
-
-Skills use category subdirectories because of scale (29 skills). Each category maps to a distinct type of instruction.
 
 ## Agents
 
