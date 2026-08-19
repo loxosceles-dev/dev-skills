@@ -1,0 +1,14 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "execute_bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "{ echo \"$(date -Iseconds) [bash] $(cat | tr '\\n' ' ')\"; } >> /tmp/kiro-shell-audit.log",
+          "timeout": 5
+        }
+      ]
+    }
+  ]
+}
