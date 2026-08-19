@@ -152,7 +152,7 @@ dependencies:
     - loxosceles/local-skills
 ```
 
-Install command (requires `GITHUB_APM_PAT_LOXOSCELES` in env for private repos):
+Install command (requires `GH_TOKEN` in env for private repos):
 ```sh
 source ~/.secrets.d/github.env
 cd ~/.apm-host && apm install --frozen --global --target kiro
@@ -233,14 +233,11 @@ cd "${WORKSPACE_ROOT}" && \
 
 ## Credential Requirements
 
-Private repos (`guitarizta-skills`, `local-skills`) require:
-```sh
-GITHUB_APM_PAT_LOXOSCELES="<token from: gh auth token>"
-```
+Private repos (`guitarizta-skills`, `local-skills`) require `GH_TOKEN` in the environment:
 
-- **Host:** `~/.secrets.d/github.env` (sourced by zsh at login)
-- **Devcontainers with guitarizta-skills:** `.devcontainer/.env` with `GITHUB_APM_PAT_LOXOSCELES=<token>`, injected via `runArgs: ["--env-file", ".devcontainer/.env"]` in `devcontainer.json`
-- **`ai-dev` is public** — standard coding projects need no PAT
+- **Host:** `~/.secrets.d/github.env` (sourced by zsh at login) — `GH_TOKEN=<token>`
+- **Devcontainers:** `.devcontainer/.env` with `GH_TOKEN=<token>`, passed into container via `docker-compose.yml` environment block
+- **`ai-dev` is public** — standard coding projects need no token
 
 ## Projects Using This System
 
