@@ -335,7 +335,17 @@ docker rmi devcontainer-<project-name>
 
 **`guitarizta-skills` is host-only — never in containers.** Even for guitarizta projects. If a project needs a Guitarizta-specific skill permanently, commit it directly in the repo under `.kiro/skills/<skill-name>/SKILL.md`. Do not add `guitarizta-skills` to the project `apm.yml`.
 
-**`runArgs` + `--env-file` is only needed if the container requires secrets at build time.** For `ai-dev`-only projects (public repo), no `runArgs` needed. The `.env` injection was originally added for `guitarizta-skills` — now that it's host-only, it's not needed in new projects.
+**Third-party public skill repos install exactly like first-party ones.** Add `owner/repo` to `apm.yml` dependencies — no token, no special config needed:
+```yaml
+dependencies:
+  apm:
+    - loxosceles/ai-dev
+    - mattpocock/skills      # third-party public repo — works identically
+  mcp: []
+```
+Regenerate the lockfile (`apm lock`) after adding. The lockfile pins the SHA so updates only happen when you explicitly run `apm update`. Tested and verified: `mattpocock/skills` resolves, locks, installs 24 skills, audit clean.
+
+**`runArgs` + `--env-file` is only needed if the container requires secrets at build time.** For `ai-dev`-only or public-repo-only projects, no `runArgs` needed. The `.env` injection was originally added for `guitarizta-skills` — now that it's host-only, it's not needed in new projects.
 
 **On custom base images (not `mcr.microsoft.com/devcontainers/*`), `~/.local/share` may be owned by root.** `uvx` needs to write its tool cache there as the container user. Fix in Dockerfile:
 ```dockerfile
