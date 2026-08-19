@@ -253,7 +253,7 @@ Private repos (`guitarizta-skills`, `local-skills`) require `GH_TOKEN` in the en
 |---------|------|-----------|-----------|
 | can-do-it | `__projects/can-do-it` | `can-do-it_devcontainer-dev-1` | ✅ Migrated |
 | guitarizta-practice-plan | `__guitarizta/guitarizta-practice-plan` | `guitarizta-practice-plan_devcontainer-dev-1` | ✅ Migrated |
-| guitar-notation-studio | `__guitarizta/guitar-notation-studio` | `guitar-notation-studio_devcontainer-dev-1` | ✅ Migrated (rebuild pending) |
+| guitar-notation-studio | `__guitarizta/guitar-notation-studio` | `guitar-notation-studio_devcontainer-dev-1` | ✅ Migrated |
 | fckpaper | `__projects/fckpaper` | `fckpaper_devcontainer-dev-1` | Pending |
 | viability-agents | `__guitarizta/viability-agents` | `viability-agents_devcontainer-dev-1` | Pending |
 | career-match-engine | `__projects/career-match-engine` | `career-match-engine_devcontainer-dev-1` | Pending |
@@ -267,8 +267,8 @@ Pending projects still use `npx skills add` — they migrate when their blueprin
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| Phase 1 | ✅ Complete | `can-do-it` devcontainer migrated to APM |
-| Phase 1b | ⏳ Waiting (1 week) | Blueprint update — roll out to all projects |
+| Phase 1 | ✅ Complete | can-do-it, guitarizta-practice-plan, guitar-notation-studio migrated and verified |
+| Phase 1b | ⏳ Waiting (1 week from 2026-08-19) | Roll out to remaining projects: fckpaper, viability-agents, career-match-engine, guitarizta-landing-page, kiimana, ai-portfolio |
 | Phase 2 | ⏳ Blocked on Phase 1b | Host machine global install |
 | Phase 3 | 🔵 Separate track | Agent JSON → Markdown (Kiro v3) |
 | Phase 4 | ⏳ Blocked on Phase 2 | VPS / Hermes |

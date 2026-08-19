@@ -243,44 +243,101 @@ To upgrade APM later: `uv tool install apm-cli==<new-version>` — test in devco
 
 ## Migration Phases
 
-### Phase 1 — Single devcontainer pilot
+### Phase 1 — Devcontainer migration
 
-**Goal:** validate APM in a real devcontainer before touching the blueprint.
+**Goal:** Replace npx + symlink pattern with APM in every devcontainer. Pilot on `can-do-it`, then roll to remaining projects.
 
-1. Pick `can-do-it` (non-critical, runs regularly)
-2. Add `apm.yml` to project root:
+**Verified on:** can-do-it ✅ · guitarizta-practice-plan ✅ · guitar-notation-studio ✅
+
+#### Step-by-step
+
+1. Add `apm.yml` to **project root** (not `.devcontainer/`):
    ```yaml
-   name: can-do-it
+   name: <project-name>
    version: 1.0.0
+   targets:
+     - kiro
+     - claude
+     - codex
+     - copilot
+     - agent-skills
    dependencies:
      apm:
        - loxosceles/ai-dev
+     mcp: []
    ```
-3. Generate and commit lockfile:
+
+2. Generate lockfile on host (not in container):
    ```sh
-   # In the container or with uv on host
-   uv tool run apm-cli==0.28.0 lock
+   cd <project-root>
+   uvx --from apm-cli==0.28.0 apm lock
    git add apm.yml apm.lock.yaml
    git commit -m "chore: Add APM manifest and lockfile"
+   git push
    ```
-4. Update `.devcontainer/post_create.sh` — replace the skills install block:
+
+3. **Dockerfile** — add uv before the `COPY post_create.sh` line, and add `post_start.sh` to the same COPY:
+   ```dockerfile
+   # uv / uvx for APM install
+   COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+   COPY post_create.sh post_start.sh /usr/src/
+   RUN chmod +x /usr/src/post_create.sh /usr/src/post_start.sh
+   ```
+   ⚠️ **Order matters:** `COPY --from=uv` must come before the `COPY post_create.sh` line so the cache is invalidated correctly when scripts change.
+
+4. **`post_create.sh`** — replace the entire skills/agents install block:
    ```sh
-   # OLD
-   [ -f "${WORKSPACE_ROOT}/skills-lock.json" ] && \
-     cd "${WORKSPACE_ROOT}" && npx -y skills experimental_install && \
-     npx -y skills add loxosceles/ai-dev --agent kiro-cli -y && \
-     ln -sf "${WORKSPACE_ROOT}/.agents/skills" "$HOME/.kiro/skills"
-
-   # NEW — APM deploys physical files to .kiro/skills/, no symlink needed
-   curl -LsSf https://astral.sh/uv/install.sh | sh && \
-   uv tool install apm-cli==0.28.0 && \
-   cd "${WORKSPACE_ROOT}" && apm install --frozen --target kiro
+   # ─── Skills, agents, hooks via APM ───────────────────────────────────────────
+   rm -rf "${WORKSPACE_ROOT}/.kiro/skills"
+   mkdir -p "${WORKSPACE_ROOT}/.kiro/skills"
+   cd "${WORKSPACE_ROOT}" && uvx --from apm-cli==0.28.0 apm install --frozen
+   mkdir -p "$HOME/.kiro/agents"
+   find "${WORKSPACE_ROOT}/apm_modules" -path "*/agents/kiro/*.json" \
+     -exec cp {} "$HOME/.kiro/agents/" \;
    ```
-5. Rebuild container, run per-devcontainer verification checklist (see below)
-6. If pass: update blueprint `post_create.sh` in `project-blueprints`
-7. Roll out to remaining devcontainers on next rebuild
+   Remove: all `npx skills add`, all `ln -sf` pointing `.agents/skills`, all manual `curl | sh` uv installs (uv is now in the image).
 
-**Rollback:** revert `post_create.sh` to old block, rebuild.
+5. **`post_start.sh`** — create if missing, add APM sync block:
+   ```sh
+   # ─── Sync skills, agents, hooks via APM ──────────────────────────────────────
+   cd "${WORKSPACE_ROOT}" && \
+     uvx --from apm-cli==0.28.0 apm install --frozen > /dev/null 2>&1 && \
+     find "${WORKSPACE_ROOT}/apm_modules" -path "*/agents/kiro/*.json" \
+       -exec cp {} "$HOME/.kiro/agents/" \; 2>/dev/null && \
+     echo "✓ Skills, agents, hooks synced" || echo "⚠️  APM sync failed (network?)"
+   ```
+
+6. **`devcontainer.json`** — wire both scripts:
+   ```json
+   "postCreateCommand": "/bin/sh /usr/src/post_create.sh",
+   "postStartCommand": "/bin/sh /usr/src/post_start.sh"
+   ```
+   ⚠️ `post_create.sh` is baked into the image via Dockerfile COPY, so it runs from `/usr/src/`. `post_start.sh` can be baked the same way (preferred, see can-do-it) or referenced from the workspace (`${containerWorkspaceFolder}/.devcontainer/post_start.sh`). Either works — workspace reference is fine since the file is committed.
+
+7. **Rebuild Without Cache** in VS Code.
+
+8. Run per-devcontainer verification checklist (see below).
+
+#### Gotchas learned from migration
+
+**Docker build cache doesn't invalidate on file content changes alone.** If the image was previously built, even `Rebuild Without Cache` in VS Code may replay a cached `COPY` layer. Fix: delete the image manually before rebuilding.
+```sh
+docker rmi devcontainer-<project-name>
+# Then Rebuild Without Cache in VS Code
+```
+
+**`post_start.sh` must be baked into the image OR referenced from the workspace — not from `/usr/src/` if it wasn't COPYed.** If `postStartCommand` references `/usr/src/post_start.sh` but only `post_create.sh` was COPYed, the command silently fails. Always verify both files are in the COPY line.
+
+**`apm_modules/` is gitignored by APM automatically.** Do not add it manually — it'll be a no-op and could mask the auto-ignore.
+
+**`--frozen` is mandatory.** Never run `apm install` without `--frozen` in a container. Without it APM resolves from the network on every build, breaking reproducibility and causing cache mismatches.
+
+**`guitarizta-skills` is host-only — never in containers.** Even for guitarizta projects. If a project needs a Guitarizta-specific skill permanently, commit it directly in the repo under `.kiro/skills/<skill-name>/SKILL.md`. Do not add `guitarizta-skills` to the project `apm.yml`.
+
+**`runArgs` + `--env-file` is only needed if the container requires secrets at build time.** For `ai-dev`-only projects (public repo), no `runArgs` needed. The `.env` injection was originally added for `guitarizta-skills` — now that it's host-only, it's not needed in new projects.
+
+**Rollback:** revert `post_create.sh` and `post_start.sh` to old npx block, remove uv COPY from Dockerfile, rebuild.
 
 ### Phase 2 — Host machine
 
@@ -387,12 +444,30 @@ diff ~/.apm-host/skills-baseline.txt /tmp/skills-after.txt
 ```
 
 ### Per-devcontainer (Phase 1)
-- [ ] `apm audit` reports no issues — primary integrity check
-- [ ] `ls .kiro/skills/ | sort | diff - <expected-list>` — no unexpected additions or deletions
-- [ ] `kiro-cli chat` starts without errors inside container
-- [ ] `lead-dev` finds `git-commits`, `core-principles`
-- [ ] `planner` finds `critic-dialogue`
-- [ ] `.kiro/hooks/ai-dev-shell-audit-pretooluse-1.json` exists
+
+Run these four checks inside the container after every migration:
+
+```sh
+# 1. Skills installed as physical files (no symlinks)
+ls -ld .kiro/skills && ls .kiro/skills | wc -l
+
+# 2. Agents deployed
+ls ~/.kiro/agents/*.json | xargs -I{} basename {}
+
+# 3. Hooks deployed
+ls .kiro/hooks/
+
+# 4. APM audit — primary integrity check
+cd <workspace-root> && uvx --from apm-cli==0.28.0 apm audit
+```
+
+Expected results:
+- Skills: physical directory (not a symlink), count = number of skills in `ai-dev` (currently 21)
+- Agents: `code-reviewer.json critic.json lead-dev.json planner.json` (from ai-dev) + project-specific agents if any
+- Hooks: `ai-dev-shell-audit-pretooluse-1.json`
+- APM audit: `No drift detected`
+
+Then verify agent auto-discovery by asking the agent a question that requires a skill — confirm it references the APM-installed version, not a stale path.
 
 ### Host (Phase 2)
 - [ ] `apm audit` reports no issues
