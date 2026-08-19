@@ -250,11 +250,12 @@ Private repos (`guitarizta-skills`, `local-skills`) require `GH_TOKEN` in the en
 | Project | Path | Container | APM status |
 |---------|------|-----------|-----------|
 | can-do-it | `__projects/can-do-it` | `can-do-it_devcontainer-dev-1` | ✅ Migrated |
+| guitarizta-practice-plan | `__guitarizta/guitarizta-practice-plan` | `guitarizta-practice-plan_devcontainer-dev-1` | ✅ Migrated |
+| guitar-notation-studio | `__guitarizta/guitar-notation-studio` | `guitar-notation-studio_devcontainer-dev-1` | ✅ Migrated (rebuild pending) |
 | fckpaper | `__projects/fckpaper` | `fckpaper_devcontainer-dev-1` | Pending |
 | viability-agents | `__guitarizta/viability-agents` | `viability-agents_devcontainer-dev-1` | Pending |
 | career-match-engine | `__projects/career-match-engine` | `career-match-engine_devcontainer-dev-1` | Pending |
 | guitarizta-landing-page | `__guitarizta/guitarizta-landing-page` | `guitarizta-landing-page_devcontainer-dev-1` | Pending |
-| guitarizta-practice-plan | `__guitarizta/guitarizta-practice-plan` | `guitarizta-practice-plan_devcontainer-dev-1` | Pending |
 | kiimana | `__projects/kiimana` | `kiimana_devcontainer-dev-1` | Pending |
 | ai-portfolio | `__projects/ai-portfolio` | `ai-portfolio_devcontainer-dev-1` | Pending |
 
