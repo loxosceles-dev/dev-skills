@@ -10,8 +10,10 @@ description: "Use when updating/syncing skills across projects after modifying a
 | Repo | Purpose | Install in devcontainers? |
 |------|---------|--------------------------|
 | `loxosceles/ai-dev` | Coding, shared, project-setup skills — public | Yes (all projects) |
-| `loxosceles/guitarizta-skills` | Guitarizta domain skills (alphatex, CRM, comms, KB, etc.) — private | Guitarizta projects only |
+| `loxosceles/guitarizta-skills` | Guitarizta domain skills (KB, comms, ops, etc.) — private | **Never** — host-only like local-skills |
 | `loxosceles/local-skills` | Host-machine-only admin tasks (invoice downloads, file processing) — private | **Never** |
+
+Project-specific Guitarizta workflows belong as committed skills inside the project repo (`.kiro/skills/<skill-name>/SKILL.md`), not pulled from `guitarizta-skills`.
 
 Each repo also contains:
 - `skills/` — the skill files (deployed by APM)
