@@ -337,6 +337,15 @@ docker rmi devcontainer-<project-name>
 
 **`runArgs` + `--env-file` is only needed if the container requires secrets at build time.** For `ai-dev`-only projects (public repo), no `runArgs` needed. The `.env` injection was originally added for `guitarizta-skills` — now that it's host-only, it's not needed in new projects.
 
+**On custom base images (not `mcr.microsoft.com/devcontainers/*`), `~/.local/share` may be owned by root.** `uvx` needs to write its tool cache there as the container user. Fix in Dockerfile:
+```dockerfile
+RUN useradd -m -s /usr/bin/zsh -u 1000 vscode && \
+    echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode && \
+    mkdir -p /home/vscode/.local/share && \
+    chown -R vscode:vscode /home/vscode/.local
+```
+The Microsoft devcontainer base images handle this automatically; custom images (e.g. `ghcr.io/astral-sh/uv:python3.11-bookworm`) do not.
+
 **Rollback:** revert `post_create.sh` and `post_start.sh` to old npx block, remove uv COPY from Dockerfile, rebuild.
 
 ### Phase 2 — Host machine
