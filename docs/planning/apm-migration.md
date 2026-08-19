@@ -20,10 +20,10 @@ Migration from the current hand-rolled symlink system to APM (Agent Package Mana
 
 **APM validated 2026-08-19 in clean devcontainer:**
 - `--frozen` reproducible install: identical output from same lockfile ✓
-- `--target kiro` skill deployment: 45 skills from 3 repos (20 + 18 + 7) ✓
+- `--target kiro` skill deployment: 21 skills from ai-dev only ✓
 - `--global` host install: deploys to `~/.kiro/skills/` ✓
-- Private repo auth (`GITHUB_APM_PAT_LOXOSCELES`): `guitarizta-skills` + `local-skills` resolved ✓
-- Multi-repo single manifest: all 3 repos in one `apm.yml` ✓
+- Private repo auth (`GH_TOKEN`): `guitarizta-skills` + `local-skills` resolved on host ✓
+- Multi-repo single manifest: all 3 repos in one `~/.apm-host/apm.yml` ✓
 - Hook deployment to `.kiro/hooks/`: Kiro v1 format, namespaced ✓
 - `apm audit`: no issues ✓
 - `includes: auto`: discovers all skills from repo root ✓
@@ -36,11 +36,13 @@ Three repos, three life scopes:
 
 | Repo | Scope | Access | Containers |
 |------|-------|--------|------------|
-| `loxosceles/ai-dev` | Professional — dev craft | Public | Yes |
-| `loxosceles/guitarizta-skills` | Company — Guitarizta IP | Private | Guitarizta projects only |
+| `loxosceles/ai-dev` | Professional — dev craft | Public | Yes — all projects |
+| `loxosceles/guitarizta-skills` | Company — Guitarizta IP | Private | **Never** — host-only |
 | `loxosceles/local-skills` | Personal — host-only | Private | **Never** |
 
-`loxosceles/loxosceles-dev-tooling` — opinionated stack patterns, per-project install alongside `ai-dev`.
+**Key rule:** `guitarizta-skills` and `local-skills` are both host-only. Neither is ever installed in a devcontainer. Project-specific Guitarizta workflows belong as committed skills inside the project repo (`.kiro/skills/<skill-name>/SKILL.md`), not pulled from `guitarizta-skills`.
+
+`loxosceles/loxosceles-dev-tooling` — opinionated stack patterns, per-project install alongside `ai-dev`. No APM manifest yet — pending migration.
 
 **Agents:** lead-dev, planner, code-reviewer, critic (ai-dev) · guitarizta (guitarizta-skills) · personal, destructor (local-skills)
 
@@ -179,27 +181,15 @@ Branch tips are fine in the manifest (`loxosceles/ai-dev` without SHA) because t
 
 ## Credential Requirements
 
-**Host and VPS only.** Private repos (`guitarizta-skills`, `local-skills`) require:
+**Host and VPS only.** Private repos (`guitarizta-skills`, `local-skills`) require `GH_TOKEN` in the environment:
 
 ```sh
-GITHUB_APM_PAT_LOXOSCELES="<token from: gh auth token>"
+GH_TOKEN="<token from: gh auth token>"
 ```
 
 - Host: `~/.secrets.d/github.env` — sourced by zsh at login
 - VPS (Hermes): Hermes secrets store
-- **Devcontainers:** `ai-dev` is public — standard coding projects need no PAT. Guitarizta project containers that install `guitarizta-skills` need the PAT passed in at container build time.
-
-  The mechanism is Docker's `runArgs` in `devcontainer.json`:
-  ```json
-  "runArgs": ["--env-file", "${localWorkspaceFolder}/.devcontainer/.env"]
-  ```
-  `.devcontainer/.env` is gitignored and contains:
-  ```sh
-  GITHUB_APM_PAT_LOXOSCELES=<token>
-  ```
-  The variable is then available to `post_create.sh` during container setup.
-
-- `local-skills` is never installed in any container — no container ever needs it.
+- **Devcontainers:** `ai-dev` is public — no token needed. `guitarizta-skills` and `local-skills` are never installed in containers — no token needed in containers either.
 
 Update the `credentials` skill to document this PAT after adding it.
 
