@@ -101,7 +101,7 @@ done
 rm -rf ~/.kiro/skills     && cp -r "$BACKUP_DIR/kiro-skills"   ~/.kiro/skills
 rm -rf ~/.agents/skills   && cp -r "$BACKUP_DIR/agents-skills" ~/.agents/skills
 rm -rf ~/.kiro/skill-sets && cp -r "$BACKUP_DIR/skill-sets"    ~/.kiro/skill-sets
-cp -r "$BACKUP_DIR/agents"/* ~/.kiro/agents/
+rm -rf ~/.kiro/agents     && cp -r "$BACKUP_DIR/agents"        ~/.kiro/agents
 
 # Revert post_create.sh in project-blueprints to npx block
 ```
@@ -225,7 +225,8 @@ apm update                          # re-resolves, writes new apm.lock.yaml
 cd ~/.dotfiles
 git add dot_apm-host/apm.lock.yaml
 git commit -m "chore: Update host skill lockfile"
-chezmoi apply                       # propagates to ~/.apm-host/
+chezmoi apply                       # propagates lockfile to ~/.apm-host/
+cd ~/.apm-host && apm install --frozen --global --target kiro   # apply the update
 ```
 
 **Resolve before Phase 2.** Add to dotfiles repo first.
@@ -301,7 +302,8 @@ To upgrade APM later: `uv tool install apm-cli==<new-version>` — test in devco
 
 **Steps:**
 1. Take and verify backup
-2. Install APM: `uv tool install apm-cli==0.28.0`
+2. Install uv (if not already present): `curl -LsSf https://astral.sh/uv/install.sh | sh`
+3. Install APM: `uv tool install apm-cli==0.28.0`
 3. Source the PAT and verify it is loaded:
    ```sh
    source ~/.secrets.d/github.env
@@ -340,7 +342,7 @@ To upgrade APM later: `uv tool install apm-cli==<new-version>` — test in devco
 1. Add `GITHUB_APM_PAT_LOXOSCELES` to Hermes secrets store (via `hermes-vps` skill)
 2. Install uv on VPS: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 3. `uv tool install apm-cli==0.28.0`
-4. Create `~/apm-host/apm.yml` on VPS (no `local-skills`):
+4. Create `~/.apm-host/apm.yml` on VPS (no `local-skills`):
    ```yaml
    name: hermes-host
    version: 1.0.0
@@ -349,17 +351,30 @@ To upgrade APM later: `uv tool install apm-cli==<new-version>` — test in devco
        - loxosceles/ai-dev
        - loxosceles/guitarizta-skills
    ```
-5. `source <(hermes-secrets get GITHUB_APM_PAT_LOXOSCELES)` — or however Hermes exposes secrets
-6. `apm lock` — generates `~/apm-host/apm.lock.yaml`
+5. Source PAT from Hermes secrets store
+6. `cd ~/.apm-host && apm lock` — generates `~/.apm-host/apm.lock.yaml`
 7. Commit the VPS lockfile to `guitarizta-skills` repo for version control:
    ```sh
-   cp ~/apm-host/apm.lock.yaml /path/to/guitarizta-skills/.apm/hermes.lock.yaml
+   cp ~/.apm-host/apm.lock.yaml /path/to/guitarizta-skills/.apm/hermes.lock.yaml
    git -C /path/to/guitarizta-skills add .apm/hermes.lock.yaml
    git -C /path/to/guitarizta-skills commit -m "chore: Add Hermes VPS lockfile"
    ```
-   On reprovision, copy back from repo before running `apm install --frozen`.
+   On reprovision, restore with:
+   ```sh
+   mkdir -p ~/.apm-host
+   cp /path/to/guitarizta-skills/.apm/hermes.lock.yaml ~/.apm-host/apm.lock.yaml
+   ```
 8. `apm install --frozen --global --target kiro`
 9. Run VPS checklist
+
+**VPS Rollback:** Hermes agent is stateless for skills — skills are re-installed, not migrated. If APM install fails:
+```sh
+# Remove failed install
+rm -rf ~/.kiro/skills ~/.kiro/hooks
+# Revert to npx install temporarily
+npx -y skills add loxosceles/ai-dev --agent kiro-cli -y
+```
+Then diagnose the failure before retrying `apm install`.
 
 ---
 
@@ -403,8 +418,13 @@ diff ~/.apm-host/skills-baseline.txt /tmp/skills-after.txt
 
 ### VPS (Phase 4)
 - [ ] `apm audit` reports no issues
+- [ ] `diff <(cat guitarizta-skills/.apm/hermes.lock.yaml | grep name) <(apm list | grep name)` — installed matches lockfile
 - [ ] `ls ~/.kiro/skills/ | wc -l` ≥ 38 (ai-dev + guitarizta, no local-skills)
-- [ ] Hermes agent starts and finds guitarizta skills
+- [ ] Hermes agent starts without errors
+- [ ] `guitarizta` finds `crm`, `guitarizta-comms`, `inbox-processing`
+- [ ] `lead-dev` finds `git-commits`, `core-principles`
+- [ ] `~/.kiro/hooks/ai-dev-shell-audit-pretooluse-1.json` exists
+- [ ] `apm.lock.yaml` present at `~/.apm-host/apm.lock.yaml`
 
 ---
 
