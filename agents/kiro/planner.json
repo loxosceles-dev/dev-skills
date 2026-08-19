@@ -10,7 +10,7 @@
     "glob"
   ],
   "resources": [
-    "skill://.kiro/skills/**/SKILL.md"
+    "skill://.kiro/skill-sets/coding/**/SKILL.md"
   ],
   "welcomeMessage": "Planner ready. Tell me what you need designed — I'll draft it and run it through the critic before we're done.",
   "includeMcpJson": true

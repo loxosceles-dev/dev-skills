@@ -17,7 +17,7 @@
     "code"
   ],
   "resources": [
-    "skill://.kiro/skills/**/SKILL.md"
+    "skill://.kiro/skill-sets/coding/**/SKILL.md"
   ],
   "keyboardShortcut": "ctrl+shift+r",
   "welcomeMessage": "Code reviewer ready. Give me a PR number.",

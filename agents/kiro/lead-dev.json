@@ -18,7 +18,7 @@
     "code"
   ],
   "resources": [
-    "skill://.kiro/skills/**/SKILL.md"
+    "skill://.kiro/skill-sets/coding/**/SKILL.md"
   ],
   "includeMcpJson": true
 }
