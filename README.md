@@ -1,6 +1,10 @@
 # ai-dev
 
-Coding and project-setup skills and agents for all development projects.
+Universal coding and project-setup skills and agents for all development projects.
+
+**Scope:** General engineering practices — conventions, patterns, and tooling that apply regardless of stack. Safe to share with other developers and install in any project.
+
+**Not here:** Opinionated stack-specific patterns (AWS/CDK/Lambda/SST/TypeScript stack decisions) live in [loxosceles/loxosceles-dev-tooling](https://github.com/loxosceles/loxosceles-dev-tooling). Those were factored out because they encode personal stack choices that are too specific to distribute as general dev tooling.
 
 ## Install skills into a project
 
