@@ -162,6 +162,12 @@ This deploys physical skill files to `~/.kiro/skills/`. The old symlink farm (`~
 
 **Note: Phase 2 (host migration) is not yet complete.** Until then, the host still uses the legacy symlink setup. Do not run the global install until Phase 2 is executed.
 
+**Until Phase 2, updating a skill on the host requires a manual copy:**
+```sh
+cp "/Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<skill-name>/SKILL.md" \
+   ~/.kiro/skills/<skill-name>/SKILL.md
+```
+
 ## Authoring
 
 - Edit the skill in the appropriate repo under `__tools/`
