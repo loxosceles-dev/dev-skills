@@ -23,7 +23,7 @@ A persistent discussion thread where an independent critic scores each document 
 ## Pipeline
 
 ```
-critic → dev-response ⟲ (max 3, gate: score ≥ 4/5) → planner (if needed) → final-gate
+critic → dev-response ⟲ (max 3, gate: score ≥ 4/5) → planner (if needed) → finalizer
 ```
 
 | Stage | Role | Trigger |
@@ -31,7 +31,7 @@ critic → dev-response ⟲ (max 3, gate: score ≥ 4/5) → planner (if needed)
 | critic | Scores docs, writes critique entry | Always first |
 | dev-response | Responds point by point | `NEEDS_WORK` in critic output |
 | planner | Arbitrates unresolved points | After 3 failed passes |
-| final-gate | Lead acceptance check — ships or holds | Always last |
+| finalizer | Applies accepted changes | `APPROVED` or after planner |
 
 The critic outputs `APPROVED` or `NEEDS_WORK` at the end of every entry. The pipeline reads these exact words to decide whether to loop or proceed.
 
@@ -70,9 +70,6 @@ Every stage appends a timestamped entry. Never overwrite. The file is the full h
 
 ## YYYY-MM-DD HH:MM — Planner   ← only if 3 passes exhausted
 [OVERRULE/UPHOLD/THIRD_PATH per unresolved point]
-
-## YYYY-MM-DD HH:MM — Lead
-[gate checks + SHIP/HOLD decision]
 ```
 
 ---
@@ -96,10 +93,125 @@ Reads the full thread. Makes one call per unresolved point:
 The planner is not a second critic and not the dev's advocate. Their goal is a working solution, not a perfect one.
 
 ### `final-gate.md` — lead-dev's turn
-Reads the full thread and the proposed changes. Checks against project conventions, right problem, right angle, integration, testability, scope, and conflicts. Outputs SHIP or HOLD with a specific blocker for each HOLD. This is the merge decision — not more critique, not more design, just acceptance or rejection.
+Reads the full thread and the resulting proposed changes. Checks against project conventions, right problem, right angle, integration, testability, scope, and conflicts. Outputs SHIP or HOLD with a specific blocker for each HOLD. This is the merge decision — not more critique, not more design, just acceptance or rejection.
 
-### (no prompt file needed for applying changes)
-Once the gate is SHIP, apply all accepted/upheld changes and output final documents.
+### (no prompt file needed for finalizer)
+Reads the discussion thread, applies all accepted/upheld changes, outputs final documents.
+
+---
+
+## Large Document Pipeline
+
+When a document is too large for a single critic pass — implementation plans with multiple phases, large PRs, strategy docs, books — use the chunked pipeline instead. The standard pipeline above is for single documents or small focused specs.
+
+### The problem it solves
+
+A critic reading a 6-phase implementation plan will flag gaps in phase 4 that were already handled in phase 1. The critic has no way to know. The result is noise: the dev spends cycles explaining that the missing thing exists, the critic loops, nothing improves.
+
+### How it works
+
+```
+chunker → [N envelopes] → parallel critic loops → aggregator → final-gate
+```
+
+The chunker reads the full document, identifies natural boundaries (phases, modules, sections, chapters), and wraps each chunk in a context envelope: what's already settled in preceding chunks, what's coming in following chunks, and the chunk content itself. The critic for each chunk only sees its envelope — focused scope, correct context.
+
+Critics run in parallel. The aggregator collects all findings, checks for cross-chunk issues that isolated critics couldn't see (contradictions, orphaned dependencies, scope overlaps), and produces a unified gate verdict before final-gate runs.
+
+### Chunk envelope format
+
+Each envelope has exactly three sections:
+
+```markdown
+## Chunk: {name}
+
+### Already in place (do not flag as missing)
+{verbatim outcomes from preceding chunks}
+
+### Coming later (not your concern)
+{verbatim intentions from following chunks}
+
+### Your scope — review this
+{verbatim chunk content}
+```
+
+### File layout
+
+```
+docs/planning/discussions/{topic}/
+  chunks/
+    manifest.md                  ← chunk list with order and descriptions
+    {chunk-id}-envelope.md       ← one per chunk, written by chunker
+    {chunk-id}-discussion.md     ← one per chunk, written by critic/dev loop
+  aggregated-findings.md         ← written by aggregator
+```
+
+### Prompt files
+
+- `chunker.md` — reads the full doc, splits into chunks, writes envelopes and manifest
+- `aggregator.md` — collects per-chunk threads, runs cross-chunk consistency check, produces unified gate verdict
+- `critic-lens.md`, `dev-respond.md`, `planner-arbitrate.md`, `final-gate.md` — same as standard pipeline, used once per chunk
+
+### Subagent Stage Configuration (large document)
+
+The chunker runs first. Then N parallel critic loops — one per chunk, each using its envelope file as the document input. Then aggregator. Then final-gate.
+
+```yaml
+stages:
+  - name: chunker
+    role: lead-dev
+    prompt: |
+      [paste chunker.md content]
+      path: {document path}
+      topic: {topic slug}
+
+  # Repeat the critic/dev-response/planner block once per chunk.
+  # Each block targets its own envelope and discussion file.
+  - name: critic-{chunk-id}
+    role: critic
+    model: claude-opus-4.5
+    depends_on: [chunker]
+    prompt: |
+      [paste critic-lens.md content]
+      Document to review: docs/planning/discussions/{topic}/chunks/{chunk-id}-envelope.md
+      Discussion file: docs/planning/discussions/{topic}/chunks/{chunk-id}-discussion.md
+
+  - name: dev-response-{chunk-id}
+    role: lead-dev
+    depends_on: [critic-{chunk-id}]
+    prompt: |
+      [paste dev-respond.md content]
+      Discussion file: docs/planning/discussions/{topic}/chunks/{chunk-id}-discussion.md
+    loop_to:
+      target: critic-{chunk-id}
+      trigger: "NEEDS_WORK"
+      max_iterations: 3
+
+  # aggregator depends on all dev-response stages
+  - name: aggregator
+    role: lead-dev
+    depends_on: [dev-response-chunk-0, dev-response-chunk-1, ...]
+    prompt: |
+      [paste aggregator.md content]
+      topic: {topic slug}
+
+  - name: final-gate
+    role: lead-dev
+    depends_on: [aggregator]
+    prompt: |
+      [paste final-gate.md content]
+      Discussion file: docs/planning/discussions/{topic}/aggregated-findings.md
+```
+
+### When to use which pipeline
+
+| Situation | Pipeline |
+|-----------|----------|
+| Single focused spec, ADR, short design doc | Standard |
+| Implementation plan with 3+ phases | Large document |
+| PR touching multiple unrelated modules | Large document |
+| Strategy doc, long-form writing | Large document |
+| Unsure | Count the natural sections. More than 3 → large document. |
 
 ---
 
@@ -141,7 +253,7 @@ stages:
       Discussion file: docs/planning/discussions/{topic}.md
 ```
 
-The final-gate always runs. After `APPROVED` the planner stage is a no-op (nothing to arbitrate), and the lead checks the outcome before shipping.
+The finalizer always runs — after `APPROVED` the planner stage is a no-op (nothing to arbitrate), and the finalizer applies the minor accepted changes cleanly.
 
 ---
 
@@ -154,7 +266,7 @@ There are two ways into the pipeline. Same stages, different starting point.
 Switch to the `planner` agent. Ask it to design or spec something. It writes the document and **automatically kicks off the full pipeline** — you never have to ask for a review. The task isn't done until the gate is cleared.
 
 ```
-you → planner agent → [writes doc] → critic → dev-response ⟲ → planner (arbitrate) → final-gate
+you → planner agent → [writes doc] → critic → dev-response ⟲ → planner (arbitrate) → finalizer
 ```
 
 ### Entry point 2 — any agent (reactive, existing doc)
@@ -166,7 +278,7 @@ You're in any agent — lead-dev, or wherever. You have a doc that was written e
 The agent reads this skill and kicks off the pipeline **from the critic stage** — no writer stage, the doc already exists.
 
 ```
-existing doc → critic → dev-response ⟲ → planner (arbitrate) → final-gate
+existing doc → critic → dev-response ⟲ → planner (arbitrate) → finalizer
 ```
 
 Both paths use the same subagent stage config. The only difference is whether a writer stage runs first.
