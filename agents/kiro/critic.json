@@ -6,7 +6,8 @@
     "fs_read",
     "grep",
     "glob",
-    "code"
+    "code",
+    "fs_write"
   ],
   "allowedTools": [
     "fs_read",
