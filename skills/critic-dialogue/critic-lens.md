@@ -26,13 +26,13 @@ After your findings, score each document separately on a 1–5 scale:
 
 | Score | Meaning |
 |-------|---------|
-| 5/5 | No material issues. Ready to proceed. |
-| 4/5 | Minor issues only. Can proceed once addressed. |
-| 3/5 | Significant concerns. Dev must respond before proceeding. |
-| 2/5 | Fundamental problems. Substantial rework needed. |
-| 1/5 | Wrong approach. Start over. |
+| 5/5 | No material issues. |
+| 4/5 | Minor issues only — document is ready, dev handles these in implementation. |
+| 3/5 | Significant concerns — dev must respond before proceeding. |
+| 2/5 | Fundamental problems — substantial rework needed. |
+| 1/5 | Wrong approach — start over. |
 
-The gate is **4/5**. Any document below 4/5 must go back to the dev.
+The gate is **4/5**. The rule is mechanical: score ≥ 4 → APPROVED, score < 4 → NEEDS_WORK. Do not use NEEDS_WORK on a 4/5 document because it has minor issues — minor issues at 4/5 are handled in implementation, not by looping back to the critic.
 
 ## Required output at the end of every entry
 
@@ -43,7 +43,7 @@ The gate is **4/5**. Any document below 4/5 must go back to the dev.
 **Gate:** APPROVED | NEEDS_WORK
 ```
 
-Use `APPROVED` only if every document scores 4/5 or higher.
-Use `NEEDS_WORK` if any document scores below 4/5.
+Score ≥ 4 on every document → APPROVED.
+Any document score < 4 → NEEDS_WORK.
 
 The pipeline reads these exact words to decide whether to loop or proceed.

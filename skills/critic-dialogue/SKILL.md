@@ -23,7 +23,7 @@ A persistent discussion thread where an independent critic scores each document 
 ## Pipeline
 
 ```
-critic → dev-response ⟲ (max 3, gate: score ≥ 4/5) → planner (if needed) → finalizer
+critic → dev-response ⟲ (max 3, gate: score ≥ 4/5) → planner (if needed) → final-gate
 ```
 
 | Stage | Role | Trigger |
@@ -31,7 +31,7 @@ critic → dev-response ⟲ (max 3, gate: score ≥ 4/5) → planner (if needed)
 | critic | Scores docs, writes critique entry | Always first |
 | dev-response | Responds point by point | `NEEDS_WORK` in critic output |
 | planner | Arbitrates unresolved points | After 3 failed passes |
-| finalizer | Applies accepted changes | `APPROVED` or after planner |
+| final-gate | Lead acceptance check — ships or holds | Always last |
 
 The critic outputs `APPROVED` or `NEEDS_WORK` at the end of every entry. The pipeline reads these exact words to decide whether to loop or proceed.
 
@@ -43,13 +43,13 @@ The critic scores each document 1–5:
 
 | Score | Meaning |
 |-------|---------|
-| 5/5 | No material issues. Ready to proceed. |
-| 4/5 | Minor issues only. Can proceed once addressed. |
+| 5/5 | No material issues. |
+| 4/5 | Minor issues only — document is ready, dev handles in implementation. |
 | 3/5 | Significant concerns. Must go back to dev. |
 | 2/5 | Fundamental problems. Substantial rework needed. |
 | 1/5 | Wrong approach. Start over. |
 
-Gate is **4/5**. `APPROVED` only when every document scores 4 or higher. Any document below 4 → `NEEDS_WORK` → loop back to dev.
+Gate is **4/5**. Score ≥ 4 → `APPROVED`. Score < 4 → `NEEDS_WORK`. The gate decision is mechanical — minor issues at 4/5 do not trigger another loop.
 
 ---
 
@@ -70,6 +70,9 @@ Every stage appends a timestamped entry. Never overwrite. The file is the full h
 
 ## YYYY-MM-DD HH:MM — Planner   ← only if 3 passes exhausted
 [OVERRULE/UPHOLD/THIRD_PATH per unresolved point]
+
+## YYYY-MM-DD HH:MM — Lead
+[gate checks + SHIP/HOLD decision]
 ```
 
 ---
@@ -92,8 +95,11 @@ Reads the full thread. Makes one call per unresolved point:
 
 The planner is not a second critic and not the dev's advocate. Their goal is a working solution, not a perfect one.
 
-### (no prompt file needed for finalizer)
-Reads the discussion thread, applies all accepted/upheld changes, outputs final documents.
+### `final-gate.md` — lead-dev's turn
+Reads the full thread and the proposed changes. Checks against project conventions, right problem, right angle, integration, testability, scope, and conflicts. Outputs SHIP or HOLD with a specific blocker for each HOLD. This is the merge decision — not more critique, not more design, just acceptance or rejection.
+
+### (no prompt file needed for applying changes)
+Once the gate is SHIP, apply all accepted/upheld changes and output final documents.
 
 ---
 
@@ -103,7 +109,7 @@ Reads the discussion thread, applies all accepted/upheld changes, outputs final 
 stages:
   - name: critic
     role: critic
-    model: claude-sonnet-4-5
+    model: claude-opus-4.5
     prompt: |
       [paste critic-lens.md content]
       Document to review: {path}
@@ -127,16 +133,15 @@ stages:
       [paste planner-arbitrate.md content]
       Discussion file: docs/planning/discussions/{topic}.md
 
-  - name: finalizer
+  - name: final-gate
     role: lead-dev
     depends_on: [planner]
     prompt: |
-      Read docs/planning/discussions/{topic}.md.
-      Apply all changes the dev accepted, all points the planner upheld, and any THIRD_PATH alternatives.
-      Output final documents with FILE: headers.
+      [paste final-gate.md content]
+      Discussion file: docs/planning/discussions/{topic}.md
 ```
 
-The finalizer always runs — after `APPROVED` the planner stage is a no-op (nothing to arbitrate), and the finalizer applies the minor accepted changes cleanly.
+The final-gate always runs. After `APPROVED` the planner stage is a no-op (nothing to arbitrate), and the lead checks the outcome before shipping.
 
 ---
 
@@ -149,7 +154,7 @@ There are two ways into the pipeline. Same stages, different starting point.
 Switch to the `planner` agent. Ask it to design or spec something. It writes the document and **automatically kicks off the full pipeline** — you never have to ask for a review. The task isn't done until the gate is cleared.
 
 ```
-you → planner agent → [writes doc] → critic → dev-response ⟲ → planner (arbitrate) → finalizer
+you → planner agent → [writes doc] → critic → dev-response ⟲ → planner (arbitrate) → final-gate
 ```
 
 ### Entry point 2 — any agent (reactive, existing doc)
@@ -161,7 +166,7 @@ You're in any agent — lead-dev, or wherever. You have a doc that was written e
 The agent reads this skill and kicks off the pipeline **from the critic stage** — no writer stage, the doc already exists.
 
 ```
-existing doc → critic → dev-response ⟲ → planner (arbitrate) → finalizer
+existing doc → critic → dev-response ⟲ → planner (arbitrate) → final-gate
 ```
 
 Both paths use the same subagent stage config. The only difference is whether a writer stage runs first.
