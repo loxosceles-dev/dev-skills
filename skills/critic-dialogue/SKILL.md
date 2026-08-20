@@ -160,6 +160,7 @@ The chunker runs first. Then N parallel critic loops — one per chunk, each usi
 stages:
   - name: chunker
     role: lead-dev
+    model: claude-sonnet-4.6
     prompt: |
       [paste chunker.md content]
       path: {document path}
@@ -178,6 +179,7 @@ stages:
 
   - name: dev-response-{chunk-id}
     role: lead-dev
+    model: claude-opus-4.5
     depends_on: [critic-{chunk-id}]
     prompt: |
       [paste dev-respond.md content]
@@ -190,6 +192,7 @@ stages:
   # aggregator depends on all dev-response stages
   - name: aggregator
     role: lead-dev
+    model: claude-sonnet-4.6
     depends_on: [dev-response-chunk-0, dev-response-chunk-1, ...]
     prompt: |
       [paste aggregator.md content]
@@ -197,6 +200,7 @@ stages:
 
   - name: final-gate
     role: lead-dev
+    model: claude-opus-4.5
     depends_on: [aggregator]
     prompt: |
       [paste final-gate.md content]
@@ -229,6 +233,7 @@ stages:
 
   - name: dev-response
     role: lead-dev
+    model: claude-opus-4.5
     depends_on: [critic]
     prompt: |
       [paste dev-respond.md content]
@@ -247,6 +252,7 @@ stages:
 
   - name: final-gate
     role: lead-dev
+    model: claude-opus-4.5
     depends_on: [planner]
     prompt: |
       [paste final-gate.md content]
