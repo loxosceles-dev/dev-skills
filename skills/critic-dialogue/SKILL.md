@@ -233,6 +233,8 @@ stages:
 | Strategy doc, long-form writing | Large document |
 | Unsure | Count the natural sections. More than 3 → large document. |
 
+**If you invoke the large-document pipeline on a small document by mistake**, the chunker MUST detect this and fall back to the standard pipeline. A document with fewer than 3 natural sections, or under ~500 lines, should not be chunked — chunking a small document adds overhead, fragments context the critic needs to see whole, and produces worse results than a single pass. The chunker's first output should state which pipeline it chose and why.
+
 ---
 
 ## Subagent Stage Configuration
