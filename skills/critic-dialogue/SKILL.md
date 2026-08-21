@@ -111,12 +111,14 @@ A critic reading a 6-phase implementation plan will flag gaps in phase 4 that we
 ### How it works
 
 ```
-chunker → [N envelopes] → parallel critic loops → aggregator → final-gate
+chunker → [critic-1 ⟲ dev-1, critic-2 ⟲ dev-2, ... critic-N ⟲ dev-N] (parallel) → aggregator → final-gate
 ```
 
 The chunker reads the full document, identifies natural boundaries (phases, modules, sections, chapters), and wraps each chunk in a context envelope: what's already settled in preceding chunks, what's coming in following chunks, and the chunk content itself. The critic for each chunk only sees its envelope — focused scope, correct context.
 
-Critics run in parallel. The aggregator collects all findings, checks for cross-chunk issues that isolated critics couldn't see (contradictions, orphaned dependencies, scope overlaps), and produces a unified gate verdict before final-gate runs.
+Each chunk runs a full critic/dev loop independently and in parallel. The dev responds to the critic's findings for that chunk; the critic loops back if unresolved (max 3 passes). No per-chunk planner — unresolved threads after 3 passes are flagged by the aggregator instead.
+
+The aggregator runs after all pairs are done. It receives 10 settled, closed threads (resolved positions, not open findings) and checks for cross-chunk issues that isolated critics couldn't see: contradictions, orphaned dependencies, scope overlaps, ordering violations. It produces a unified gate verdict before final-gate runs.
 
 ### Chunk envelope format
 
@@ -154,7 +156,7 @@ docs/planning/discussions/{topic}/
 
 ### Subagent Stage Configuration (large document)
 
-The chunker runs first. Then N parallel critic loops — one per chunk, each using its envelope file as the document input. Then aggregator. Then final-gate.
+The chunker runs first. Then N parallel critic/dev pairs — one per chunk, each running its own loop to resolution. The aggregator runs after all pairs are done. Then final-gate.
 
 ```yaml
 stages:
@@ -166,8 +168,7 @@ stages:
       path: {document path}
       topic: {topic slug}
 
-  # Repeat the critic/dev-response/planner block once per chunk.
-  # Each block targets its own envelope and discussion file.
+  # Repeat this critic/dev-response pair once per chunk (all depend on chunker, all run in parallel).
   - name: critic-{chunk-id}
     role: critic
     model: claude-opus-4.5
@@ -189,7 +190,9 @@ stages:
       trigger: "NEEDS_WORK"
       max_iterations: 3
 
-  # aggregator depends on all dev-response stages
+  # No per-chunk planner. Unresolved threads after 3 passes are flagged by the aggregator.
+
+  # aggregator depends on ALL dev-response stages
   - name: aggregator
     role: lead-dev
     model: claude-sonnet-4.6
