@@ -1,6 +1,6 @@
 ---
 name: skill-routing
-description: "Where does a new or updated skill belong? Use this before creating or modifying any skill to avoid placing it in the wrong repo. Resolves agent confusion about the four possible destinations."
+description: "Where does a new or updated skill belong? Use this before creating or modifying any skill to avoid placing it in the wrong package. Resolves agent confusion about the six possible destinations."
 type: guideline
 ---
 
@@ -10,101 +10,147 @@ type: guideline
 
 ---
 
-## The Four Destinations
+## The Six Packages
 
-| Destination | When | Examples |
-|------------|------|---------|
-| **Project `.kiro/skills/`** | Applies to THIS project only, not reusable elsewhere | `guitarizta-services` domain rules, this project's CI pattern |
-| **`loxosceles/ai-dev`** | Universal coding skill, any developer on any project would use it | `git-commits`, `core-principles`, `tdd`, `code-review` |
-| **`loxosceles/guitarizta-skills`** | Guitarizta business/product/ops skill, not general coding | `guitarizta-comms`, `crm`, `inbox-processing`, `transcript-extraction` |
-| **`loxosceles/local-skills`** | Only makes sense on this specific machine, never in projects | `aws-invoice-download`, `meeting-recorder`, `hermes-vps` |
+| Package | Directory | Contains | Repo |
+|---------|-----------|----------|------|
+| `ai-dev` | `~/.kiro/skills/ai-dev/` | Code quality, software craft | `loxosceles/ai-dev` |
+| `agent-ops` | `~/.kiro/skills/agent-ops/` | How agents work: review pipelines, research, handoff, orchestration | `loxosceles/agent-ops-skills` |
+| `shared` | `~/.kiro/skills/shared/` | Domain-agnostic tools: pdf, html, browser, publishing | `loxosceles/shared-skills` |
+| `guitarizta` | `~/.kiro/skills/guitarizta/` | Guitarizta business, product, KB | `loxosceles/guitarizta-skills` |
+| `local` | `~/.kiro/skills/local/` | This machine only: VPS, invoices, host-admin | `loxosceles/local-skills` |
+| `3p/<vendor>` | `~/.kiro/skills/3p/<vendor>/` | Third-party packages, full install, never edited | upstream vendor repos |
+| project | `.kiro/skills/` in the project repo | This project only | committed to the project |
 
 ---
 
 ## Decision Tree
 
 ```
-Is the skill useful in ANY coding project (not just this one)?
+Is this a third-party skill you don't own?
 │
-├─ YES → Is it universally applicable regardless of domain?
-│         │
-│         ├─ YES → ai-dev repo
-│         │         (git-commits, core-principles, tdd, code-review, etc.)
-│         │
-│         └─ NO, it's Guitarizta-specific coding → guitarizta-skills repo
+└─ YES → 3p/<vendor>/ — install full package via APM, cherry-pick per agent
+
+Is this specific to one project only?
 │
-└─ NO → Does it require being on THIS machine (paths, secrets, local tools)?
-          │
-          ├─ YES → local-skills repo
-          │         (invoice download, VPS management, machine-specific paths)
-          │
-          └─ NO, it's project-specific → commit to .kiro/skills/ in the project
-                  (domain rules, project-specific workflows, this repo's patterns)
+└─ YES → commit to .kiro/skills/ in that project repo
+
+Is this about HOW agents work as agents?
+(review pipelines, research, handoff, grilling, orchestration, synthesis)
+│
+└─ YES → agent-ops
+
+Is this a tool any agent might use regardless of domain?
+(pdf conversion, html reports, browser automation, publishing)
+│
+└─ YES → shared
+
+Is this about code quality or software craft?
+(git conventions, testing patterns, security, code review, frontend standards)
+│
+└─ YES → ai-dev
+
+Is this Guitarizta business/product/KB?
+│
+└─ YES → guitarizta
+
+Does it only make sense on this specific machine?
+(hardcoded paths, host-specific services, machine-admin)
+│
+└─ YES → local
 ```
 
 ---
 
 ## Common Cases, Decided
 
-| Skill | Where it goes | Why |
-|-------|--------------|-----|
-| How to write git commits | `ai-dev` | Universal coding |
-| How to review PRs | `ai-dev` | Universal coding |
-| How to write tests TDD-style | `ai-dev` | Universal coding |
-| How to write a Kiro skill | `ai-dev` | Universal coding tooling |
-| Guitarizta voice/comms guidelines | `guitarizta-skills` | Domain-specific |
-| How to use the Guitarizta CRM | `guitarizta-skills` | Domain-specific |
-| How to process transcripts | `guitarizta-skills` | Domain-specific |
-| How to manage the Hermes VPS | `local-skills` | Machine-specific |
-| How to download AWS invoices | `local-skills` | Machine-specific |
-| Domain rules for guitarizta-services | project `.kiro/skills/` | Project-specific |
-| This project's deployment workflow | project `.kiro/skills/` | Project-specific |
+| Skill | Package | Why |
+|-------|---------|-----|
+| `critic-dialogue` | `agent-ops` | Review pipeline — how agents do design reviews |
+| `research` | `agent-ops` | How agents delegate investigation |
+| `handoff` | `agent-ops` | Session continuity — agent workflow |
+| `grilling` / `grill-me` | `agent-ops` | Thinking tool — agent workflow |
+| `wayfinder` | `agent-ops` | Planning pipeline — agent workflow |
+| `to-spec` | `agent-ops` | Synthesis workflow — agent workflow |
+| `to-tickets` | `agent-ops` | Synthesis workflow — agent workflow |
+| `prototype` | `agent-ops` | Exploration pattern — agent workflow |
+| `markdown-to-pdf` | `shared` | Tool — domain-agnostic capability |
+| `publish-html-report` | `shared` | Tool — domain-agnostic capability |
+| `wizard` | `shared` | Tool — domain-agnostic capability |
+| `playwright-service` | `shared` | Tool — browser automation |
+| `git-commits` | `ai-dev` | Software craft |
+| `core-principles` | `ai-dev` | Software craft |
+| `tdd` | `ai-dev` | Software craft |
+| `code-review` | `ai-dev` | Software craft |
+| `skill-writing` | `ai-dev` | Meta — how to write skills (coding tooling) |
+| `guitarizta-comms` | `guitarizta` | Domain-specific |
+| `crm` | `guitarizta` | Domain-specific |
+| `inbox-processing` | `guitarizta` | Domain-specific |
+| `aws-invoice-download` | `local` | Machine-specific |
+| `hermes-vps` | `local` | Machine-specific |
+| `meeting-recorder` | `local` | Machine-specific |
+| `grill-me` (mattpocock) | `3p/matt-pocock` | Third-party |
+
+---
+
+## The Glob Rule
+
+**Own packages → directory glob in agent JSON. Third-party → exact paths.**
+
+```json
+// In an agent's resources field:
+"skill://~/.kiro/skills/ai-dev/*/SKILL.md",       // glob — own package
+"skill://~/.kiro/skills/agent-ops/*/SKILL.md",    // glob — own package
+"skill://~/.kiro/skills/3p/matt-pocock/grill-me/SKILL.md",  // exact — 3p
+```
+
+Adding a new skill to an owned package = auto-discovered by all agents with that glob. No agent JSON update needed.
+
+Adding a 3p skill = add the exact path to the specific agent(s) that need it.
 
 ---
 
 ## Where to Edit the File
 
-Once you know the destination, the file path follows:
-
 ```
-Project skill:    <project-root>/.kiro/skills/<name>/SKILL.md
-
-ai-dev:           /Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<name>/SKILL.md
-
-guitarizta-skills: /Volumes/DATA EXT/Development/Repositories/__tools/guitarizta-skills/skills/<name>/SKILL.md
-
-local-skills:     /Volumes/DATA EXT/Development/Repositories/__tools/local-skills/skills/<name>/SKILL.md
+ai-dev skill:        /Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<name>/SKILL.md
+agent-ops skill:     /Volumes/DATA EXT/Development/Repositories/__tools/agent-ops-skills/skills/<name>/SKILL.md
+shared skill:        /Volumes/DATA EXT/Development/Repositories/__tools/shared-skills/skills/<name>/SKILL.md
+guitarizta skill:    /Volumes/DATA EXT/Development/Repositories/__tools/guitarizta-skills/skills/<name>/SKILL.md
+local skill:         /Volumes/DATA EXT/Development/Repositories/__tools/local-skills/skills/<name>/SKILL.md
+project skill:       <project-root>/.kiro/skills/<name>/SKILL.md
+3p skill:            do not edit — pull from upstream
 ```
 
-After editing `ai-dev`, `guitarizta-skills`, or `local-skills`, push to `main` directly — no PR needed for skill-only changes. Then copy to host manually until Phase 2 APM migration completes:
-
+After editing any owned repo, push to `main` directly. Then sync to host until Phase 2 APM migration completes:
 ```sh
-cp "/Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<name>/SKILL.md" \
-   ~/.kiro/skills/<name>/SKILL.md
+cp "/Volumes/DATA EXT/Development/Repositories/__tools/<repo>/skills/<name>/SKILL.md" \
+   ~/.kiro/skills/<package>/<name>/SKILL.md
 ```
 
 ---
 
-## What Goes in a Skill
+## When a 3p Skill Needs to Diverge
 
-See `skill-writing` skill for format and frontmatter rules.
-
-The critical fields:
-- `name` — matches the directory name
-- `description` — one sentence that tells an agent WHEN to use this skill
-- `type` — `guideline` (strict, follow exactly) or `pattern` (adapt to context)
+If an upstream 3p skill doesn't behave the way you need:
+1. Copy it into the appropriate owned package (`agent-ops/` or `shared/`)
+2. Edit your copy
+3. Remove the exact path from the agent JSON (the directory glob picks it up)
+4. Remove that package from the APM dependency if you're no longer using any of its skills
 
 ---
 
 ## Anti-Patterns
 
-❌ **Do not create a skill in `ai-dev` that references Guitarizta-specific paths or tools.** `ai-dev` is public and project-agnostic.
+❌ **Do not glob over `3p/`** — always cherry-pick 3p skills by exact path per agent.
 
-❌ **Do not put a project-specific skill in `guitarizta-skills`.** The guitarizta-skills repo is for domain skills that apply across all Guitarizta work, not for one project's patterns.
+❌ **Do not edit files in `~/.kiro/skills/3p/`** — they're overwritten on `apm update`.
 
-❌ **Do not hard-code machine paths in `ai-dev` or `guitarizta-skills`.** Machine paths (`/Volumes/DATA EXT/...`) belong in `local-skills` or project skills only.
+❌ **Do not put a project-specific skill in any shared package** — commit it to the project's `.kiro/skills/` instead.
 
-❌ **Do not duplicate a skill across repos.** If a skill already exists in `ai-dev`, don't copy it to `guitarizta-skills`. Reference it or link to it.
+❌ **Do not add a skill to `ai-dev` that references Guitarizta-specific paths** — `ai-dev` is public and project-agnostic.
+
+❌ **Do not hardcode machine paths in `ai-dev`, `agent-ops`, or `shared`** — machine paths belong in `local` or project skills only.
 
 ---
 
