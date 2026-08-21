@@ -28,7 +28,29 @@ Do not apply:
 
 If two chunks accepted fixes that touch the same interface, the aggregated findings take precedence — use the cross-chunk resolution, not the per-chunk fix.
 
-## Step 3 — Apply fixes to the original plan files
+## Step 3 — Present the change list for human approval
+
+Before touching any file, print the full change list to the user:
+
+```
+Proposed changes — waiting for approval before writing:
+
+{file}
+  — {change 1}
+  — {change 2}
+
+{file}
+  — {change 1}
+
+Not applying:
+  — {anything skipped and why}
+
+Proceed? (yes to write, no to abort)
+```
+
+Stop here. Do not write any files until the user confirms. If the user says no or requests changes, revise the change list and present it again.
+
+## Step 4 — Apply fixes to the original plan files
 
 Edit each plan file directly. Preserve the original structure, voice, and format. Make surgical changes — replace the specific claim, sentence, or section that was identified. Do not rewrite surrounding content.
 
@@ -40,7 +62,7 @@ docs/planning/implementation/{topic}/phase-4-fretboard-validator.md
   — Applied: return type renamed to ErgonomicResult, filename noted as ergonomics.py
 ```
 
-## Step 4 — Write a revision summary
+## Step 5 — Write a revision summary
 
 Append to `docs/planning/discussions/{topic}/aggregated-findings.md`:
 

@@ -262,7 +262,8 @@ stages:
       max_iterations: 3
 
   - name: planner
-    role: planner
+    role: lead-dev
+    model: claude-opus-4.5
     depends_on: [dev-response]
     prompt: |
       [paste planner-arbitrate.md content]
@@ -275,9 +276,19 @@ stages:
     prompt: |
       [paste final-gate.md content]
       Discussion file: docs/planning/discussions/{topic}.md
+
+  # Only runs on SHIP. On HOLD, address blockers and re-run the loop first.
+  - name: reviser
+    role: lead-dev
+    model: claude-sonnet-4.6
+    depends_on: [final-gate]
+    prompt: |
+      [paste reviser.md content]
+      topic: {topic slug}
+      Plan files: {list of original plan file paths}
 ```
 
-The finalizer always runs — after `APPROVED` the planner stage is a no-op (nothing to arbitrate), and the finalizer applies the minor accepted changes cleanly.
+The planner stage is a no-op when the critic outputs `APPROVED` (nothing to arbitrate). The reviser presents a change summary to the human before writing any files.
 
 ---
 
