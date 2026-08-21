@@ -111,14 +111,16 @@ A critic reading a 6-phase implementation plan will flag gaps in phase 4 that we
 ### How it works
 
 ```
-chunker → [critic-1 ⟲ dev-1, critic-2 ⟲ dev-2, ... critic-N ⟲ dev-N] (parallel) → aggregator → final-gate
+chunker → [critic-1 ⟲ dev-1, critic-2 ⟲ dev-2, ... critic-N ⟲ dev-N] (parallel) → aggregator → final-gate → reviser (on SHIP)
 ```
 
 The chunker reads the full document, identifies natural boundaries (phases, modules, sections, chapters), and wraps each chunk in a context envelope: what's already settled in preceding chunks, what's coming in following chunks, and the chunk content itself. The critic for each chunk only sees its envelope — focused scope, correct context.
 
 Each chunk runs a full critic/dev loop independently and in parallel. The dev responds to the critic's findings for that chunk; the critic loops back if unresolved (max 3 passes). No per-chunk planner — unresolved threads after 3 passes are flagged by the aggregator instead.
 
-The aggregator runs after all pairs are done. It receives 10 settled, closed threads (resolved positions, not open findings) and checks for cross-chunk issues that isolated critics couldn't see: contradictions, orphaned dependencies, scope overlaps, ordering violations. It produces a unified gate verdict before final-gate runs.
+The aggregator runs after all pairs are done. It receives settled, closed threads (resolved positions, not open findings) and checks for cross-chunk issues that isolated critics couldn't see: contradictions, orphaned dependencies, scope overlaps, ordering violations. It produces a unified gate verdict before final-gate runs.
+
+On SHIP, the reviser applies all accepted fixes — per-chunk and cross-chunk — to the original plan files in a single pass. It reads everything before touching anything, so cross-chunk resolutions take precedence over per-chunk fixes when they touch the same interface.
 
 ### Chunk envelope format
 
@@ -145,13 +147,14 @@ docs/planning/discussions/{topic}/
     manifest.md                  ← chunk list with order and descriptions
     {chunk-id}-envelope.md       ← one per chunk, written by chunker
     {chunk-id}-discussion.md     ← one per chunk, written by critic/dev loop
-  aggregated-findings.md         ← written by aggregator
+  aggregated-findings.md         ← written by aggregator, appended by final-gate and reviser
 ```
 
 ### Prompt files
 
 - `chunker.md` — reads the full doc, splits into chunks, writes envelopes and manifest
 - `aggregator.md` — collects per-chunk threads, runs cross-chunk consistency check, produces unified gate verdict
+- `reviser.md` — runs after final-gate SHIP; applies all accepted fixes from discussion threads and cross-chunk resolutions to the original plan files in one pass; scope-locked to what was agreed, nothing more
 - `critic-lens.md`, `dev-respond.md`, `planner-arbitrate.md`, `final-gate.md` — same as standard pipeline, used once per chunk
 
 ### Subagent Stage Configuration (large document)
@@ -208,6 +211,16 @@ stages:
     prompt: |
       [paste final-gate.md content]
       Discussion file: docs/planning/discussions/{topic}/aggregated-findings.md
+
+  # Only runs on SHIP. On HOLD, address blockers and re-run affected chunks first.
+  - name: reviser
+    role: lead-dev
+    model: claude-sonnet-4.6
+    depends_on: [final-gate]
+    prompt: |
+      [paste reviser.md content]
+      topic: {topic slug}
+      Plan files: {list of original plan file paths}
 ```
 
 ### When to use which pipeline
