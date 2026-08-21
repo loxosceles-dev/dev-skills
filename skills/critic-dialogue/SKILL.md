@@ -262,7 +262,7 @@ stages:
       max_iterations: 3
 
   - name: planner
-    role: kiro_planner
+    role: planner
     depends_on: [dev-response]
     prompt: |
       [paste planner-arbitrate.md content]
