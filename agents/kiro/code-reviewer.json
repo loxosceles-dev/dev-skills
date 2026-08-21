@@ -17,7 +17,9 @@
     "code"
   ],
   "resources": [
-    "skill://.kiro/skill-sets/coding/**/SKILL.md"
+    "skill://~/.kiro/skills/ai-dev/*/SKILL.md",
+    "skill://~/.kiro/skills/agent-ops/*/SKILL.md",
+    "skill://.kiro/skills/*/SKILL.md"
   ],
   "keyboardShortcut": "ctrl+shift+r",
   "welcomeMessage": "Code reviewer ready. Give me a PR number.",

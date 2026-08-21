@@ -11,7 +11,9 @@
     "subagent"
   ],
   "resources": [
-    "skill://.kiro/skill-sets/coding/**/SKILL.md"
+    "skill://~/.kiro/skills/ai-dev/*/SKILL.md",
+    "skill://~/.kiro/skills/agent-ops/*/SKILL.md",
+    "skill://.kiro/skills/*/SKILL.md"
   ],
   "welcomeMessage": "Planner ready. Tell me what you need designed — I'll draft it and run it through the critic before we're done.",
   "includeMcpJson": true

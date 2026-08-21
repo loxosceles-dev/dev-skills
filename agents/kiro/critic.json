@@ -21,6 +21,8 @@
   "welcomeMessage": "Critic ready. Hand me something to tear apart.",
   "includeMcpJson": false,
   "resources": [
-    "skill://.kiro/skill-sets/critic/**/SKILL.md"
+    "skill://~/.kiro/skills/ai-dev/*/SKILL.md",
+    "skill://~/.kiro/skills/agent-ops/*/SKILL.md",
+    "skill://.kiro/skills/*/SKILL.md"
   ]
 }
