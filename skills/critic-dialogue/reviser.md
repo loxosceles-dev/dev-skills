@@ -48,7 +48,7 @@ Not applying:
 Proceed? (yes to write, no to abort)
 ```
 
-Stop here. Do not write any files until the user confirms. If the user says no or requests changes, revise the change list and present it again.
+Stop here. Do not write any files until the user confirms. If the user does not approve, wait for their instructions before doing anything else.
 
 ## Step 4 — Apply fixes to the original plan files
 
