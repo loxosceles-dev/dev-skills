@@ -1,30 +1,30 @@
 ---
 name: skill-sync
-description: "Use when updating/syncing skills across projects after modifying any skills repo (ai-dev, guitarizta-skills, local-skills). Covers the full workflow: authoring in the correct repo, pushing to main, and how APM deploys skills, agents, and hooks into devcontainers and the host machine."
+description: "Use when updating/syncing skills across projects after modifying any skills repo (ai-dev, guitarizta-skills, local-skills). Covers the full workflow: authoring in the correct repo, pushing to main, and how APM deploys skills, agents, and hooks on the host machine and into projects."
 ---
 
 # Skill Sync Workflow
 
 ## Three Skill Repos
 
-| Repo | Purpose | Install in devcontainers? |
-|------|---------|--------------------------|
-| `loxosceles/ai-dev` | Coding, shared, project-setup skills — public | Yes (all projects) |
-| `loxosceles/guitarizta-skills` | Guitarizta domain skills (KB, comms, ops, etc.) — private | **Never** — host-only like local-skills |
-| `loxosceles/local-skills` | Host-machine-only admin tasks (invoice downloads, file processing) — private | **Never** |
+| Repo | Purpose | Scope |
+|------|---------|-------|
+| `loxosceles/ai-dev` | Coding, shared, project-setup skills — public | All projects |
+| `loxosceles/guitarizta-skills` | Guitarizta domain skills (KB, comms, ops, etc.) — private | Host + Guitarizta projects |
+| `loxosceles/local-skills` | Host-machine-only admin tasks (invoice downloads, file processing) — private | Host only — never in projects |
 
 Project-specific Guitarizta workflows belong as committed skills inside the project repo (`.kiro/skills/<skill-name>/SKILL.md`), not pulled from `guitarizta-skills`.
 
 Each repo also contains:
 - `skills/` — the skill files (deployed by APM)
-- `agents/kiro/` — Kiro agent JSON configs (host symlinks point here; APM bundles these into `apm_modules/` for containers)
-- `.apm/agents/` — agent JSONs for APM deployment (mirrors `agents/kiro/` contents)
+- `agents/kiro/` — Kiro agent JSON configs (host symlinks point here)
+- `.apm/agents/` — agent JSONs for APM deployment
 - `.apm/hooks/` — Kiro hooks (deployed by APM to `.kiro/hooks/`)
 - `apm.yml` — APM package manifest at repo root
 
 ## How Skills, Agents, and Hooks Are Installed
 
-**APM (Agent Package Manager)** replaces `npx skills add`. It is the single install mechanism for all three primitives across all environments.
+**APM (Agent Package Manager)** is the single install mechanism for all three primitives.
 
 ```
 __tools/ai-dev/              (authoring — coding/shared skills, agents, hooks)
@@ -37,18 +37,16 @@ github.com/loxosceles/{repo}   (source of truth, SHA-pinned via apm.lock.yaml)
         ▼
 apm_modules/                   (downloaded packages, gitignored)
         │
-        ├─ skills → .kiro/skills/        (Kiro — physical files, no symlinks)
+        ├─ skills → .kiro/skills/        (Kiro)
         │         → .agents/skills/      (Claude Code / Codex / Copilot)
         │
-        ├─ hooks  → .kiro/hooks/         (deployed from .apm/hooks/)
-        │
-        └─ agents → post_create.sh copies */agents/kiro/*.json → ~/.kiro/agents/
+        └─ hooks  → .kiro/hooks/         (deployed from .apm/hooks/)
 ```
 
 ### Install command
 
 ```sh
-# Inside a devcontainer or on the host (from project root):
+# From project root (or on the host):
 uvx --from apm-cli==0.28.0 apm install --frozen
 ```
 
@@ -56,7 +54,7 @@ uvx --from apm-cli==0.28.0 apm install --frozen
 
 ### Project manifest (`apm.yml`)
 
-Every project has an `apm.yml` at root declaring its dependencies and targets:
+Every project has an `apm.yml` at root declaring its dependencies:
 
 ```yaml
 name: my-project
@@ -105,24 +103,13 @@ ln -sf "$LOCAL/personal.json" ~/.kiro/agents/personal.json
 ln -sf "$LOCAL/destructor.json" ~/.kiro/agents/destructor.json
 ```
 
-### Inside devcontainers
-
-APM downloads agent JSON files into `apm_modules/`. `post_create.sh` copies them to `~/.kiro/agents/` after the install:
-
-```sh
-find "${WORKSPACE_ROOT}/apm_modules" -path "*/agents/kiro/*.json" \
-  -exec cp {} "$HOME/.kiro/agents/" \;
-```
-
-This runs on every build and every start via `post_start.sh` — agents stay in sync with `main` automatically.
-
 ### Which repo for a new agent?
 
 - General dev workflow agent → `ai-dev/agents/kiro/` + `ai-dev/.apm/agents/`
 - Guitarizta-specific → `guitarizta-skills/agents/kiro/` + `guitarizta-skills/.apm/agents/`
 - Host-only personal/admin → `local-skills/agents/kiro/` + `local-skills/.apm/agents/`
 
-Agent vs skill: if it needs a specific persona, tool restrictions, or MCP config — agent. If it's a workflow the default agent follows — skill.
+**Agent vs skill:** If it needs a specific persona, tool restrictions, or MCP config — agent. If it's a workflow the default agent follows — skill.
 
 **When adding a new agent:** add the JSON to both `agents/kiro/` (for host symlinks) and `.apm/agents/` (for APM deployment). Commit both.
 
@@ -160,11 +147,9 @@ source ~/.secrets.d/github.env
 cd ~/.apm-host && apm install --frozen --global --target kiro
 ```
 
-This deploys physical skill files to `~/.kiro/skills/`. The old symlink farm (`~/.kiro/skill-sets/coding/`, `shared/`) will be removed after Phase 2 migration is verified.
+This deploys physical skill files to `~/.kiro/skills/`.
 
-**Note: Phase 2 (host migration) is not yet complete.** Until then, the host still uses the legacy symlink setup. Do not run the global install until Phase 2 is executed.
-
-**Until Phase 2, updating a skill on the host requires a manual copy:**
+**Until Phase 2 (host migration) is complete, updating a skill on the host requires a manual copy:**
 ```sh
 cp "/Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<skill-name>/SKILL.md" \
    ~/.kiro/skills/<skill-name>/SKILL.md
@@ -175,106 +160,40 @@ cp "/Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<skill-name
 - Edit the skill in the appropriate repo under `__tools/`
 - Push directly to `main` (no PR needed for skill/agent-only changes)
 - Skills are self-contained: `SKILL.md` + any scripts/assets in the same directory
-- After pushing, running containers auto-refresh on next start via `post_start.sh`
 
 **Which repo?**
+
+See `skill-routing` skill for the full decision tree. Quick summary:
 - New coding pattern or guideline → `ai-dev`
 - Guitarizta domain knowledge or tool → `guitarizta-skills`
 - Host-only admin task → `local-skills`
-
-## Pulling Skills Into a Running Container (Manual Refresh)
-
-If you need to refresh skills in a running container without restarting:
-
-```sh
-docker exec -w /workspaces/<project> <container> \
-  uvx --from apm-cli==0.28.0 apm install --frozen
-```
-
-To update to latest skills after pushing a change:
-```sh
-# 1. Update lockfile in project
-cd /path/to/project
-apm update          # re-resolves SHAs
-git add apm.lock.yaml && git commit -m "chore: Update skill lockfile"
-
-# 2. Rebuild or exec into container
-docker exec -w /workspaces/<project> <container> \
-  uvx --from apm-cli==0.28.0 apm install --frozen
-```
-
-### Container naming
-
-Pattern: `<project>_devcontainer-dev-1` → workspace at `/workspaces/<project>`
-
-## Installing Skills in post_create.sh / post_start.sh
-
-The canonical pattern (already in can-do-it, will be rolled out to all projects):
-
-**post_create.sh** (runs once on build):
-```sh
-# Clear any existing .kiro/skills so APM deploys physical files
-rm -rf "${WORKSPACE_ROOT}/.kiro/skills"
-mkdir -p "${WORKSPACE_ROOT}/.kiro/skills"
-# Project install: skills + hooks
-cd "${WORKSPACE_ROOT}" && uvx --from apm-cli==0.28.0 apm install --frozen
-# Agent install: copy from apm_modules to ~/.kiro/agents/
-mkdir -p "$HOME/.kiro/agents"
-find "${WORKSPACE_ROOT}/apm_modules" -path "*/agents/kiro/*.json" \
-  -exec cp {} "$HOME/.kiro/agents/" \;
-```
-
-**post_start.sh** (runs on every container start):
-```sh
-cd "${WORKSPACE_ROOT}" && \
-  uvx --from apm-cli==0.28.0 apm install --frozen > /dev/null 2>&1 && \
-  find "${WORKSPACE_ROOT}/apm_modules" -path "*/agents/kiro/*.json" \
-    -exec cp {} "$HOME/.kiro/agents/" \; 2>/dev/null && \
-  echo "✓ Skills, agents, hooks synced"
-```
-
-**Key facts:**
-- `uvx` is pre-installed in the Dockerfile — no install step needed
-- `--frozen` is mandatory — always replay the lockfile, never resolve fresh
-- `apm.lock.yaml` must be committed alongside `apm.yml`
-- `apm_modules/` is gitignored (APM adds this automatically)
-
-## Credential Requirements
-
-Private repos (`guitarizta-skills`, `local-skills`) require `GH_TOKEN` in the environment:
-
-- **Host:** `~/.secrets.d/github.env` (sourced by zsh at login) — `GH_TOKEN=<token>`
-- **Devcontainers:** `.devcontainer/.env` with `GH_TOKEN=<token>`, passed into container via `docker-compose.yml` environment block
-- **`ai-dev` is public** — standard coding projects need no token
+- Project-specific workflow → commit directly to `.kiro/skills/` in the project repo
 
 ## Projects Using This System
 
-| Project | Path | Container | APM status |
-|---------|------|-----------|-----------|
-| can-do-it | `__projects/can-do-it` | `can-do-it_devcontainer-dev-1` | ✅ Migrated |
-| guitarizta-practice-plan | `__guitarizta/guitarizta-practice-plan` | `guitarizta-practice-plan_devcontainer-dev-1` | ✅ Migrated |
-| guitar-notation-studio | `__guitarizta/guitar-notation-studio` | `guitar-notation-studio_devcontainer-dev-1` | ✅ Migrated |
-| guitarizta-services | `__guitarizta/guitarizta-services` | `devcontainer-dev-1` | ✅ Migrated |
-| fckpaper | `__projects/fckpaper` | `fckpaper_devcontainer-dev-1` | Pending |
-| viability-agents | `__guitarizta/viability-agents` | `viability-agents_devcontainer-dev-1` | Pending |
-| career-match-engine | `__projects/career-match-engine` | `career-match-engine_devcontainer-dev-1` | Pending |
-| guitarizta-landing-page | `__guitarizta/guitarizta-landing-page` | `guitarizta-landing-page_devcontainer-dev-1` | Pending |
-| kiimana | `__projects/kiimana` | `kiimana_devcontainer-dev-1` | Pending |
-| ai-portfolio | `__projects/ai-portfolio` | `ai-portfolio_devcontainer-dev-1` | Pending |
+| Project | Path | APM status |
+|---------|------|-----------|
+| can-do-it | `__projects/can-do-it` | ✅ Migrated |
+| guitarizta-practice-plan | `__guitarizta/guitarizta-practice-plan` | ✅ Migrated |
+| guitar-notation-studio | `__guitarizta/guitar-notation-studio` | ✅ Migrated |
+| guitarizta-services | `__guitarizta/guitarizta-services` | ✅ Migrated |
+| fckpaper | `__projects/fckpaper` | Pending |
+| viability-agents | `__guitarizta/viability-agents` | Pending |
+| career-match-engine | `__projects/career-match-engine` | Pending |
+| guitarizta-landing-page | `__guitarizta/guitarizta-landing-page` | Pending |
+| kiimana | `__projects/kiimana` | Pending |
+| ai-portfolio | `__projects/ai-portfolio` | Pending |
 
-Pending projects still use `npx skills add` — they migrate when their blueprint is updated (Phase 1b, after can-do-it stability period).
-
-## Migration State (as of 2026-08-19)
+## Migration State (as of 2026-08-21)
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| Phase 1 | ✅ Complete | can-do-it, guitarizta-practice-plan, guitar-notation-studio, guitarizta-services migrated and verified |
-| Phase 1b | ⏳ Waiting (1 week from 2026-08-19) | Roll out to remaining projects: fckpaper, viability-agents, career-match-engine, guitarizta-landing-page, kiimana, ai-portfolio |
-| Phase 2 | ⏳ Blocked on Phase 1b | Host machine global install |
+| Phase 1 | ✅ Complete | Core projects migrated |
+| Phase 1b | ⏳ Waiting | Roll out to remaining projects |
+| Phase 2 | ⏳ Blocked on Phase 1b | Host machine global APM install |
 | Phase 3 | 🔵 Separate track | Agent JSON → Markdown (Kiro v3) |
-| Phase 4 | ⏳ Blocked on Phase 2 | VPS / Hermes |
 
-Full plan: `__tools/ai-dev/docs/planning/apm-migration.md`
+Note: Devcontainers are being removed from all projects. The APM install pattern runs on the host machine directly — no containers involved.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: project-migration
-description: Migrate an existing project to the current devcontainer, skills, linting, and CI/CD standards. Follow when the user asks to "migrate a project", "upgrade project setup", "add devcontainer to existing project", "bring project up to standard", or "modernize project config".
+description: Migrate an existing project to the current host-native toolchain standards (mise, direnv, uv, pnpm, APM). Follow when the user asks to "migrate a project", "upgrade project setup", "bring project up to standard", "remove devcontainer from project", or "modernize project config".
 type: guideline
 ---
 
@@ -8,17 +8,18 @@ type: guideline
 
 **This is a strict guideline.** Follow these rules exactly.
 
-Migrate an existing project to the current infrastructure and tooling standards. Unlike `project-setup` (which scaffolds from scratch), this skill works with existing code and configs — it must be non-destructive and interactive.
+Migrate an existing project to the host-native toolchain. Unlike `project-setup` (which scaffolds from scratch), this skill works with existing code — it must be non-destructive and interactive.
+
+The target state is defined in `~/Hermes-Shared/guitarizta/docs/dev-toolchain-architecture.md`. Read that document for the canonical reference. This skill is the operational workflow for reaching that state.
 
 ---
 
 ## Core Principles
 
-- **Never overwrite without asking.** If a config file already exists, present a diff of what would change and ask before replacing.
-- **Work on a branch.** All changes happen on a dedicated branch. Rollback is a branch reset.
-- **Ask early, not late.** When intent is ambiguous (e.g., a custom eslint config that partially overlaps with the standard), ask whether to merge, replace, or skip. Do not assume.
-- **Fragments are the source of truth.** Use fragment files from `loxosceles/project-blueprints` for all standard configs. Common fragments (`fragments/common/`) are assembled with stack-specific injections (`fragments/injections/{stack}/`) and Dockerfiles (`fragments/dockerfiles/{stack}/`). The result is one clean file per output — no runtime includes or sourcing. Do not improvise alternatives.
-- **`devcontainer-state` is the shared config repo.** All containers mount from `~/.devcontainer-state` (overridable via `DEVCONTAINER_STATE` env var). SSH and AWS use `${SSH_PATH:-~/.ssh}` and `${AWS_PATH:-~/.aws}`. All mounts are directories — no file mounts.
+- **Never overwrite without asking.** Present diffs for any file that already exists.
+- **Work on a branch.** All changes happen on `chore/migrate-project-setup`.
+- **Ask early, not late.** When intent is ambiguous, ask before assuming.
+- **No devcontainers.** Never add or preserve `.devcontainer/` config. If it exists, plan to remove it.
 
 ---
 
@@ -26,150 +27,176 @@ Migrate an existing project to the current infrastructure and tooling standards.
 
 ### Phase 1: Assessment
 
-1. **Pre-flight: Verify devcontainer-state**: Before anything else, check that `~/.devcontainer-state/.git` exists. If it doesn't, **stop immediately** and instruct:
-   ```
-   ⛔ ~/.devcontainer-state is not a git repo.
-   Docker will auto-create mount targets as empty root-owned directories, breaking the devcontainer.
+1. **Identify the project type.** Ask if not clear — Python, Node.js, or mixed?
+2. **Read the matching blueprint** from `loxosceles/project-blueprints` to understand the target structure.
+3. **Audit the current project.** Check for:
 
-   Fix: git clone git@github.com:loxosceles/devcontainer-state.git ~/.devcontainer-state
+   | File/Dir | Current state | Target |
+   |----------|---------------|--------|
+   | `.mise.toml` | exists? what versions? | must exist, exact versions pinned |
+   | `.python-version` | exists? | must exist if Python project |
+   | `pyproject.toml` + `uv.lock` | exists? | must exist if Python project |
+   | `package.json` + `pnpm-lock.yaml` | exists? | must exist if Node project |
+   | `package.json packageManager` field | set? | must be pinned (pnpm@x.y.z) |
+   | `.envrc` | exists? | should exist with non-secret env vars |
+   | `.envrc.local.example` | exists? | should exist documenting secrets needed |
+   | `apm.yml` + `apm.lock.yaml` | exists? | must exist |
+   | `.kiro/steering/` | exists? | should exist with relevant context |
+   | `.devcontainer/` | exists? | must be removed |
+   | `.gitignore` | correct? | must include: `.venv/`, `.envrc.local`, `apm_modules/` |
 
-   If ~/.devcontainer-state already exists (empty/root-owned), remove it first:
-     sudo rm -rf ~/.devcontainer-state
-   ```
-   Do not proceed until this is resolved.
-2. **Identify the project type.** Ask the user what stack this is (e.g., Next.js + SST, Python services, static frontend). This determines which blueprint to reference.
-2. **Read the matching blueprint** from `loxosceles/project-blueprints` to understand the target state.
-3. **Audit the current project.** Check for the existence and content of:
-   - `.devcontainer/` (Dockerfile, docker-compose.yml, devcontainer.json, post_create.sh, post_start.sh)
-   - Linting/formatting (eslint config, prettier config, .prettierignore)
-   - CI/CD (`.github/workflows/`)
-   - Editor config (`.vscode/settings.json`)
-   - Project config (`.gitignore`, `.npmrc`, `.envrc`, `.env_TEMPLATE`)
-   - Skills setup (`skills-lock.json`, `.agents/`)
-   - Husky / lint-staged
-   - Docs structure (`docs/`)
-   - MCP server config (`~/.devcontainer-state/ai/mcp/servers.json`)
-4. **Present a migration plan.** List every file that will be added, updated, or left alone. Group by category (devcontainer, linting, CI/CD, etc.). For each existing file that would change, note whether it's a replace, merge, or skip — and flag items that need user input.
+4. **Present a migration plan.** Group by category. For each existing file that changes, show what changes and why. Flag items needing user input.
 
-Do not proceed past this phase without user confirmation of the plan.
+**Do not proceed past this phase without user confirmation.**
 
 ### Phase 2: Branch Setup
 
-1. **Check for a `dev` branch.** If it exists, branch from it. Otherwise branch from `main` (or the current default branch).
-2. **Create the migration branch:**
-   ```
-   git checkout -b chore/migrate-project-setup
-   ```
-3. **Verify clean working tree.** If there are uncommitted changes, stop and ask the user to commit or stash first.
+```bash
+git checkout dev 2>/dev/null || git checkout main
+git checkout -b chore/migrate-project-setup
+```
+
+Verify clean working tree first. If uncommitted changes exist, stop and ask.
 
 ### Phase 3: Execute Migration
 
-Work through the plan category by category. After each category, commit the changes with a descriptive message (e.g., `chore: Add devcontainer configuration`).
+Work category by category. Commit after each.
 
-#### Devcontainer
+#### Runtime Pinning (mise)
 
-- If `.devcontainer/` does not exist, copy all fragment files from `project-blueprints/fragments/devcontainer/`.
-- If `.devcontainer/` exists, compare each file against the fragment version:
-  - **Identical or trivially different** (only project name differs): replace silently.
-  - **Structurally different** (custom volumes, extra packages, different base image): present both versions and ask which parts to keep.
-- Create `.devcontainer/.env` from template. Ask for `PROJECT_NAME`, `GIT_NAME`, `GIT_EMAIL` if not inferrable from git config.
-- Replace `{{project_name}}` in all fragment files.
-- **Pre-create host mount targets.** Only per-project cache directories need pre-creation (Docker creates them correctly as directories). The shared `data/zsh_history_tmux/` directory already exists in the `devcontainer-state` repo via `.gitkeep`. After creating the devcontainer files, run:
+- If `.mise.toml` exists: compare current pinned versions to what the project is actually using. Confirm with user before changing any version.
+- If `.mise.toml` does not exist: determine current runtime versions and create it.
+
+```toml
+# .mise.toml
+[tools]
+python = "3.11"   # or whatever version the project is using
+node = "22.22.3"  # if Node project
+```
+
+- Create `.python-version` for Python projects (must match `.mise.toml` python version).
+
+Commit: `chore: Add mise toolchain pinning`
+
+#### Python Packages (uv)
+
+- If `pyproject.toml` exists and `uv.lock` exists: verify it's current (`uv sync`).
+- If `requirements.txt` exists but no `pyproject.toml`: propose migration to uv. Ask for project name and description. Create `pyproject.toml`, run `uv add` for each dep, generate `uv.lock`.
+- Add `.venv/` to `.gitignore`.
+
+Commit: `chore: Migrate to uv dependency management`
+
+#### Node Packages (pnpm)
+
+- If `package.json` exists:
+  - Check for `packageManager` field. If missing, determine current pnpm version (`pnpm --version`) and add it.
+  - Ensure `pnpm-lock.yaml` exists and is committed.
+  - Ensure `node_modules/` is in `.gitignore`.
+- If `npm` or `yarn` lockfiles exist alongside `pnpm-lock.yaml`: flag for user — decide which to keep.
+
+Commit: `chore: Pin pnpm version, verify lockfile`
+
+#### Environment Variables (direnv)
+
+- If `.envrc` does not exist: create a minimal one.
   ```bash
-  PROJECT=<project-name>
-  mkdir -p ~/.devcontainer-state/cache/${PROJECT}/claude
-  mkdir -p ~/.devcontainer-state/cache/${PROJECT}/kiro/settings
+  # .envrc
+  export ENVIRONMENT=dev
+  # Add project-specific non-secret vars here
+  # Load machine-local secrets if file exists (gitignored)
+  [[ -f "${PWD}/.envrc.local" ]] && source_env "${PWD}/.envrc.local"
   ```
-- **Verify MCP server config.** Check that `~/.devcontainer-state/ai/mcp/servers.json` exists. If not, warn the user to copy from `servers.json.template` and add credentials.
-- **Verify devcontainer scripts.** The setup uses two scripts:
-  - `post_create.sh` — runs once after container creation (validation, symlinks, git identity, skills restore)
-  - `post_start.sh` — runs on every container start (Claude CLI install/update, Claude settings copy, MCP server distribution)
-  - `devcontainer.json` must have both `postCreateCommand` and `postStartCommand`.
-
-#### Linting & Formatting
-
-- If no eslint/prettier config exists, copy fragments.
-- If configs exist, present the diff and ask: replace with standard, merge, or skip.
-- **Preserve project-specific eslint blocks.** The fragment eslint config is a baseline. If the project has additional blocks (e.g., `cli/**/*.ts`), keep them when replacing — merge the fragment with the project-specific additions.
-- Check `package.json` for required devDependencies (eslint, prettier, husky, lint-staged). Add missing ones.
-
-#### CI/CD
-
-- If `.github/workflows/` does not exist, copy all workflow fragments.
-- If workflows exist, compare each one. Present diffs for any that differ from fragments.
-- **Note:** If the project uses a newer version of a CI action than the fragment (e.g., `pnpm/action-setup@v5` vs fragment's `@v4`), keep the newer version and flag the fragment as needing an update.
-
-#### Editor Config
-
-- If `.vscode/settings.json` does not exist, copy fragment.
-- If it exists, merge — add missing keys, flag conflicting keys for user decision.
-- Generate a unique `statusBar.background` color if not already set.
-
-#### Project Config
-
-- `.gitignore`: merge — append missing entries from the fragment, never remove existing entries.
-- `.npmrc`, `.envrc`, `.env_TEMPLATE`: copy if missing, ask if existing version differs.
-
-#### Skills
-
-- **Use the `--agent` flag to limit installation to only the agents we use:**
+- If `.envrc` exists: review for any secrets that should be moved to `.envrc.local`.
+- Create `.envrc.local.example` documenting any secrets needed:
   ```bash
-  npx skills add loxosceles/ai-dev --agent claude-code github-copilot codex kiro-cli -y
+  # .envrc.local.example — copy to .envrc.local, fill in values, never commit
+  # export DATABASE_URL=postgres://localhost:5432/myproject_dev
+  # export STRIPE_SECRET_KEY=sk_test_...
   ```
-  Without `--agent`, using `--yes` installs for ALL agents (dozens of directories). Without `--yes`, it prompts interactively (won't work in scripts).
-- The `skills/` directory is always created by the installer as a symlink convenience folder. It cannot be prevented — just gitignore it.
-- `.gitignore` must include: `.agents/`, `.claude/skills/`, `.kiro/skills/`, `skills/`
-- Ask about additional third-party skills (e.g., `anthropics/claude-code`, `browser-use/browser-use`).
-- Steering files (mounted ro at `~/.kiro/steering/` from `~/.devcontainer-state/ai/steering/`) handle skill auto-discovery. No agent configs needed — skills cover all workflows.
+- Add `.envrc.local` to `.gitignore`.
 
-#### GitHub Copilot Instructions
+Commit: `chore: Add direnv environment configuration`
 
-- Copy `fragments/common/github/copilot-instructions.md` to `.github/copilot-instructions.md`.
-- Copy `fragments/common/github/copilot/review.md` to `.github/copilot/review.md`.
-- These are standard across all projects — always overwrite without asking.
+#### Agent Skills (APM)
 
-#### Husky & Lint-Staged
+- If `apm.yml` does not exist: create it with the standard `ai-dev` dependency.
+  ```yaml
+  name: <project-name>
+  version: 1.0.0
+  targets:
+    - kiro
+    - claude
+    - codex
+    - copilot
+    - agent-skills
+  dependencies:
+    apm:
+      - loxosceles/ai-dev#main
+    mcp: []
+  ```
+- Run `apm install` to generate `apm.lock.yaml`.
+- Add `apm_modules/` to `.gitignore`.
+- Add `.kiro/hooks/` to `.gitignore`.
 
-- If not configured, initialize: `npx husky init`, set pre-commit hook to `pnpm exec lint-staged`.
-- If already configured, check the hook content. Ask before modifying.
+Commit: `chore: Add APM skill dependencies`
 
-#### Docs Structure
+#### Devcontainer Removal
 
-- Create `docs/architecture/`, `docs/guides/`, `docs/reference/` with `.gitkeep` if they don't exist.
-- Never touch existing docs content.
+If `.devcontainer/` exists:
+
+1. Show the user what's in it.
+2. Confirm: "This will delete `.devcontainer/`. The project will use mise/uv/pnpm directly. Confirm?"
+3. After confirmation: `git rm -r .devcontainer/`
+4. Check `docker-compose.devcontainer.yml` or similar — remove if it's devcontainer-specific. Preserve any `docker-compose.yml` that provides service dependencies (Postgres, Redis, etc.).
+
+Commit: `chore: Remove devcontainer configuration`
+
+#### .gitignore Cleanup
+
+Ensure these are present:
+```
+.venv/
+node_modules/
+.envrc.local
+.env
+.env.*
+apm_modules/
+.kiro/hooks/
+dist/
+```
+
+Commit: `chore: Update gitignore for host-native toolchain`
 
 ### Phase 4: Verification
 
-Run the appropriate checks for the project type:
-
 ```bash
-pnpm lint          # or equivalent
-pnpm format:check  # or equivalent
-pnpm build         # if applicable
-pnpm test          # if applicable
+mise trust && mise install   # runtimes installed
+uv sync                      # if Python project
+pnpm install                 # if Node project
+apm install --frozen         # skills installed
+direnv allow                 # env vars loaded
 ```
 
-If any check fails, debug and fix. If the fix requires changing something the user approved in the plan, ask again before modifying.
+Run the project's own build/test commands to confirm nothing broke.
 
 ### Phase 5: Summary
 
-Present a summary of everything that was done:
+Present:
 - Files added
-- Files modified (with what changed)
-- Files left untouched (and why)
-- Branch name and how to merge or rollback
+- Files modified (what changed)
+- Files deleted (devcontainer artifacts)
+- Branch name: `chore/migrate-project-setup`
+- Next step: open PR to `dev`
 
 ---
 
 ## Rules
 
-- Git remotes must use SSH, never HTTPS: `git@github.com:user/repo.git`
-- Template variables use `{{double_braces}}` syntax
-- Commit after each category, not at the end — this makes partial rollback possible
-- If a fragment doesn't work with the project's current tool versions, report the conflict and ask
-- Never modify source code files (components, pages, lib, etc.) — only infrastructure and config
 - Never remove entries from `.gitignore` — only append
-- **Consistency with `project-setup`**: This skill and `project-setup` must produce identical results for shared concerns (devcontainer, skills, kiro, linting, CI/CD). If you detect a discrepancy between what this skill instructs and what `project-setup` does, stop and warn the developer before proceeding.
+- Never modify source code files — only infrastructure and config
+- If a devcontainer `.env` file contains real secrets, flag them — do not commit them
+- Commit after each category, not all at the end
+- Git remotes must use SSH: `git@github.com:user/repo.git`
 
 ---
 

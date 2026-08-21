@@ -8,7 +8,7 @@ type: pattern
 
 **This is a reference pattern.** Learn from the approach, adapt to your context — don't copy verbatim.
 
-**Problem**: Without devcontainers, multiple projects on the same machine share runtimes. A global Node or Python version satisfies no project precisely and contaminates others.
+**Problem**: Multiple projects on the same machine share runtimes. A global Node or Python version satisfies no project precisely and contaminates others.
 
 **Solution**: `mise` activates per-project tool versions automatically on `cd`. One `.mise.toml` per project replaces the need for nvm, pyenv, fnm, rbenv, and asdf individually.
 
@@ -18,7 +18,7 @@ type: pattern
 
 ### Per-project: `.mise.toml`
 
-Place at the repo root. Pin exact versions — never ranges.
+Place at the repo root. Pin **exact** versions — never ranges.
 
 ```toml
 [tools]
@@ -27,6 +27,21 @@ node = "22.22.3"
 ```
 
 Only include the runtimes the project actually uses. A Python-only service omits `node`.
+
+### Optional: non-secret env vars in `.mise.toml`
+
+mise can inject environment variables directly — no direnv needed for simple cases:
+
+```toml
+[tools]
+python = "3.11"
+
+[env]
+ENVIRONMENT = "dev"
+LOG_LEVEL = "debug"
+```
+
+Use this for committed, static, non-secret values. Use direnv `.envrc` when you need values to **unload on cd-out**, or when sourcing secrets.
 
 ### uv compatibility: `.python-version`
 
@@ -38,9 +53,8 @@ Only include the runtimes the project actually uses. A Python-only service omits
 
 ### `.gitignore` for build artefacts
 
-Any directory with `node_modules` or compiled output needs a local `.gitignore`:
-
 ```
+.venv/
 node_modules/
 dist/
 ```
@@ -58,8 +72,6 @@ if [[ -x "$HOME/.local/bin/mise" ]]; then
     eval "$($HOME/.local/bin/mise activate zsh)"
 fi
 ```
-
-Source this module from every profile that runs development work. The `full` profile picks it up automatically if modules are globbed. Named profiles (`python-dev`, `node-dev`) need an explicit `source` line.
 
 ---
 
@@ -88,6 +100,18 @@ mise install
 
 ---
 
+## Full onboarding sequence (after clone)
+
+```bash
+mise trust && mise install   # 1. runtime
+uv sync                      # 2. python deps (if Python project)
+pnpm install                 # 3. node deps (if Node project)
+apm install --frozen         # 4. agent skills
+direnv allow                 # 5. env vars (if .envrc exists)
+```
+
+---
+
 ## Finding the Right Version to Pin
 
 Pin the version already in use, not whatever is latest:
@@ -112,7 +136,7 @@ mise ls-remote node | grep "^22"
 - **Single tool** — replaces nvm, pyenv, fnm, rbenv, asdf
 - **Declarative** — `.mise.toml` is the source of truth, committed to the repo
 - **Compatible** — works alongside `uv`; mise handles runtime selection, uv handles packages
-- **No daemon** — unlike nvm lazy-loaders, mise activation is fast and stateless
+- **No daemon** — activation is fast and stateless
 
 ---
 
@@ -121,14 +145,16 @@ mise ls-remote node | grep "^22"
 - Requires `mise activate` in the shell — new team members must install mise
 - `mise trust` must be run once per project (security model: opt-in per directory)
 - Does not replace `uv` for Python package management — the two tools are complementary
+- Version bumps in `.mise.toml` do NOT auto-rebuild `.venv`. Must `rm -rf .venv && uv sync` after changing the Python version.
 
 ---
 
 ## What mise Does NOT Replace
 
-- `uv` for Python dependency and virtualenv management — keep using `uv sync`, `uv run`
+- `uv` for Python dependency and virtualenv management
+- `direnv` for environment variable unloading (mise `[env]` doesn't unload on cd-out)
 - Docker for service dependencies (databases, queues, etc.)
-- CI/CD environment setup — pin versions there explicitly (GitHub Actions `actions/setup-node`, etc.)
+- CI/CD environment setup — pin versions there explicitly
 
 ---
 
