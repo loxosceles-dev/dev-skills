@@ -17,7 +17,7 @@
     "code"
   ],
   "resources": [
-    "skill://~/.kiro/skills/ai-dev/*/SKILL.md",
+    "skill://~/.kiro/skills/dev-skills/*/SKILL.md",
     "skill://~/.kiro/skills/agent-ops/*/SKILL.md",
     "skill://.kiro/skills/*/SKILL.md"
   ],
