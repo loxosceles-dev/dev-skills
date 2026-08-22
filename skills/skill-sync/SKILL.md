@@ -17,14 +17,14 @@ Project-specific Guitarizta workflows belong as committed skills inside the proj
 
 Each repo also contains:
 - `skills/` — the skill files (deployed by APM)
-- `agents/kiro/` — Kiro agent JSON configs (host symlinks point here)
-- `.apm/agents/` — agent JSONs for APM deployment
+- `agents/kiro/` — Kiro agent JSON configs (host symlinks point here; authoritative version)
+- `.apm/agents/` — agent JSONs mirrored from `agents/kiro/` (APM currently skips these — see Agents section)
 - `.apm/hooks/` — Kiro hooks (deployed by APM to `.kiro/hooks/`)
 - `apm.yml` — APM package manifest at repo root
 
 ## How Skills, Agents, and Hooks Are Installed
 
-**APM (Agent Package Manager)** is the single install mechanism for all three primitives.
+**APM (Agent Package Manager)** is the single install mechanism for skills and hooks. Agents are currently managed via symlinks (see Agents section).
 
 ```
 __tools/dev-skills/              (authoring — coding/shared skills, agents, hooks)
@@ -37,11 +37,13 @@ github.com/loxosceles/{repo}   (source of truth, SHA-pinned via apm.lock.yaml)
         ▼
 apm_modules/                   (downloaded packages, gitignored)
         │
-        ├─ skills → .kiro/skills/        (Kiro)
+        ├─ skills → .kiro/skills/        (Kiro — flat, one dir per skill)
         │         → .agents/skills/      (Claude Code / Codex / Copilot)
         │
         └─ hooks  → .kiro/hooks/         (deployed from .apm/hooks/)
 ```
+
+Skills are deployed **flat** into `~/.kiro/skills/` — one directory per skill, directly under the root. There are no package-name subdirectories.
 
 ### Install command
 
@@ -75,9 +77,9 @@ Alongside it: `apm.lock.yaml` (committed, SHA-pinned, never hand-edited).
 
 ## Agents
 
-### Host machine
+### Current mechanism: symlinks
 
-`~/.kiro/agents/` contains symlinks into the repos — never real files:
+`~/.kiro/agents/` contains symlinks into the repos. This is the current working mechanism — Kiro v3 supports JSON agents.
 
 ```
 ~/.kiro/agents/
@@ -90,7 +92,7 @@ Alongside it: `apm.lock.yaml` (committed, SHA-pinned, never hand-edited).
   destructor.json    → __tools/local-skills/agents/kiro/destructor.json
 ```
 
-To recreate symlinks after a fresh clone:
+To recreate symlinks after a fresh clone or host setup:
 ```sh
 AIDEV="/Volumes/DATA EXT/Development/Repositories/__tools/dev-skills/agents/kiro"
 GTZ="/Volumes/DATA EXT/Development/Repositories/__tools/guitarizta-skills/agents/kiro"
@@ -103,15 +105,21 @@ ln -sf "$LOCAL/personal.json" ~/.kiro/agents/personal.json
 ln -sf "$LOCAL/destructor.json" ~/.kiro/agents/destructor.json
 ```
 
+### Why APM doesn't deploy agents yet
+
+APM (v0.28.0) expects Kiro agents as `.md` files with YAML frontmatter. Our agents are `.json` — APM silently skips them. Each repo has `.apm/agents/` with the JSON files mirrored there, but they're ignored at install time.
+
+This will be resolved in Phase 3 when agents are converted to Markdown format. Until then, symlinks are the mechanism and `agents/kiro/` in each repo is the authoritative source.
+
+**When adding or updating an agent:** edit `agents/kiro/<name>.json` in the appropriate repo, update the symlink if needed, commit and push. Mirror to `.apm/agents/` to keep it in sync for the eventual Phase 3 conversion.
+
 ### Which repo for a new agent?
 
-- General dev workflow agent → `dev-skills/agents/kiro/` + `dev-skills/.apm/agents/`
-- Guitarizta-specific → `guitarizta-skills/agents/kiro/` + `guitarizta-skills/.apm/agents/`
-- Host-only personal/admin → `local-skills/agents/kiro/` + `local-skills/.apm/agents/`
+- General dev workflow agent → `dev-skills`
+- Guitarizta-specific → `guitarizta-skills`
+- Host-only personal/admin → `local-skills`
 
 **Agent vs skill:** If it needs a specific persona, tool restrictions, or MCP config — agent. If it's a workflow the default agent follows — skill.
-
-**When adding a new agent:** add the JSON to both `agents/kiro/` (for host symlinks) and `.apm/agents/` (for APM deployment). Commit both.
 
 ### Secrets in agents
 
@@ -122,44 +130,45 @@ Never hardcode credentials in agent JSON. Use env vars:
 
 ## Host Machine Skill Setup
 
-Skills on the host are managed via APM global install from `~/.apm-host/`:
+Skills on the host are managed via APM global install. The host manifest lives at `~/.apm/apm.yml`:
 
-```
-~/.apm-host/
-  apm.yml          ← host manifest (all 3 repos)
-  apm.lock.yaml    ← committed lockfile (in chezmoi dotfiles)
-```
-
-Host manifest:
 ```yaml
 name: host
 version: 1.0.0
+targets:
+  - kiro
 dependencies:
   apm:
     - loxosceles-dev/dev-skills
+    - loxosceles-dev/agent-ops-skills
+    - loxosceles-dev/shared-skills
     - loxosceles/guitarizta-skills
     - loxosceles/local-skills
+  mcp: []
 ```
 
 Install command (requires `GH_TOKEN` in env for private repos):
 ```sh
-source ~/.secrets.d/github.env
-cd ~/.apm-host && apm install --frozen --global --target kiro
+source ~/.secrets.d/gh.env
+apm install --global --target kiro --force
 ```
 
-This deploys physical skill files to `~/.kiro/skills/`.
-
-**Until Phase 2 (host migration) is complete, updating a skill on the host requires a manual copy:**
+To update to latest main across all packages:
 ```sh
-cp "/Volumes/DATA EXT/Development/Repositories/__tools/dev-skills/skills/<skill-name>/SKILL.md" \
-   ~/.kiro/skills/<skill-name>/SKILL.md
+source ~/.secrets.d/gh.env
+apm update --yes   # re-resolves all SHAs, updates apm.lock.yaml, and installs
 ```
+
+This deploys physical skill files flat to `~/.kiro/skills/<skill-name>/`.
+
+**The `~/.secrets.d/gh.env` file exports `GH_TOKEN` (not `GITHUB_TOKEN`).**
 
 ## Authoring
 
 - Edit the skill in the appropriate repo under `__tools/`
 - Push directly to `main` (no PR needed for skill/agent-only changes)
 - Skills are self-contained: `SKILL.md` + any scripts/assets in the same directory
+- After pushing, run `apm update --yes` on the host to pull the latest
 
 **Which repo?**
 
@@ -184,16 +193,14 @@ See `skill-routing` skill for the full decision tree. Quick summary:
 | kiimana | `__projects/kiimana` | Pending |
 | ai-portfolio | `__projects/ai-portfolio` | Pending |
 
-## Migration State (as of 2026-08-21)
+## Migration State (as of 2026-08-22)
 
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase 1 | ✅ Complete | Core projects migrated |
-| Phase 1b | ⏳ Waiting | Roll out to remaining projects |
-| Phase 2 | ⏳ Blocked on Phase 1b | Host machine global APM install |
-| Phase 3 | 🔵 Separate track | Agent JSON → Markdown (Kiro v3) |
-
-Note: Devcontainers are being removed from all projects. The APM install pattern runs on the host machine directly — no containers involved.
+| Phase 1b | ⏳ In progress | Roll out to remaining projects |
+| Phase 2 | ✅ Complete | Host machine global APM install — skills deployed flat via APM |
+| Phase 3 | 🔵 Separate track | Agent JSON → Markdown (Kiro v3 native format, unblocks APM agent deployment) |
 
 ---
 
