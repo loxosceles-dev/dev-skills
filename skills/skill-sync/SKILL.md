@@ -1,6 +1,6 @@
 ---
 name: skill-sync
-description: "Use when updating/syncing skills across projects after modifying any skills repo (ai-dev, guitarizta-skills, local-skills). Covers the full workflow: authoring in the correct repo, pushing to main, and how APM deploys skills, agents, and hooks on the host machine and into projects."
+description: "Use when updating/syncing skills across projects after modifying any skills repo (dev-skills, guitarizta-skills, local-skills). Covers the full workflow: authoring in the correct repo, pushing to main, and how APM deploys skills, agents, and hooks on the host machine and into projects."
 ---
 
 # Skill Sync Workflow
@@ -9,7 +9,7 @@ description: "Use when updating/syncing skills across projects after modifying a
 
 | Repo | Purpose | Scope |
 |------|---------|-------|
-| `loxosceles/ai-dev` | Coding, shared, project-setup skills — public | All projects |
+| `loxosceles-dev/dev-skills` | Coding, shared, project-setup skills — public | All projects |
 | `loxosceles/guitarizta-skills` | Guitarizta domain skills (KB, comms, ops, etc.) — private | Host + Guitarizta projects |
 | `loxosceles/local-skills` | Host-machine-only admin tasks (invoice downloads, file processing) — private | Host only — never in projects |
 
@@ -27,7 +27,7 @@ Each repo also contains:
 **APM (Agent Package Manager)** is the single install mechanism for all three primitives.
 
 ```
-__tools/ai-dev/              (authoring — coding/shared skills, agents, hooks)
+__tools/dev-skills/              (authoring — coding/shared skills, agents, hooks)
 __tools/guitarizta-skills/   (authoring — guitarizta skills + agents)
 __tools/local-skills/        (authoring — host-only skills + agents)
         │  git push to main
@@ -67,7 +67,7 @@ targets:
   - agent-skills
 dependencies:
   apm:
-    - loxosceles/ai-dev#<sha>
+    - loxosceles-dev/dev-skills#<sha>
   mcp: []
 ```
 
@@ -81,10 +81,10 @@ Alongside it: `apm.lock.yaml` (committed, SHA-pinned, never hand-edited).
 
 ```
 ~/.kiro/agents/
-  lead-dev.json      → __tools/ai-dev/agents/kiro/lead-dev.json
-  code-reviewer.json → __tools/ai-dev/agents/kiro/code-reviewer.json
-  critic.json        → __tools/ai-dev/agents/kiro/critic.json
-  planner.json       → __tools/ai-dev/agents/kiro/planner.json
+  lead-dev.json      → __tools/dev-skills/agents/kiro/lead-dev.json
+  code-reviewer.json → __tools/dev-skills/agents/kiro/code-reviewer.json
+  critic.json        → __tools/dev-skills/agents/kiro/critic.json
+  planner.json       → __tools/dev-skills/agents/kiro/planner.json
   guitarizta.json    → __tools/guitarizta-skills/agents/kiro/guitarizta.json
   personal.json      → __tools/local-skills/agents/kiro/personal.json
   destructor.json    → __tools/local-skills/agents/kiro/destructor.json
@@ -92,7 +92,7 @@ Alongside it: `apm.lock.yaml` (committed, SHA-pinned, never hand-edited).
 
 To recreate symlinks after a fresh clone:
 ```sh
-AIDEV="/Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/agents/kiro"
+AIDEV="/Volumes/DATA EXT/Development/Repositories/__tools/dev-skills/agents/kiro"
 GTZ="/Volumes/DATA EXT/Development/Repositories/__tools/guitarizta-skills/agents/kiro"
 LOCAL="/Volumes/DATA EXT/Development/Repositories/__tools/local-skills/agents/kiro"
 for a in lead-dev code-reviewer critic planner; do
@@ -105,7 +105,7 @@ ln -sf "$LOCAL/destructor.json" ~/.kiro/agents/destructor.json
 
 ### Which repo for a new agent?
 
-- General dev workflow agent → `ai-dev/agents/kiro/` + `ai-dev/.apm/agents/`
+- General dev workflow agent → `dev-skills/agents/kiro/` + `dev-skills/.apm/agents/`
 - Guitarizta-specific → `guitarizta-skills/agents/kiro/` + `guitarizta-skills/.apm/agents/`
 - Host-only personal/admin → `local-skills/agents/kiro/` + `local-skills/.apm/agents/`
 
@@ -136,7 +136,7 @@ name: host
 version: 1.0.0
 dependencies:
   apm:
-    - loxosceles/ai-dev
+    - loxosceles-dev/dev-skills
     - loxosceles/guitarizta-skills
     - loxosceles/local-skills
 ```
@@ -151,7 +151,7 @@ This deploys physical skill files to `~/.kiro/skills/`.
 
 **Until Phase 2 (host migration) is complete, updating a skill on the host requires a manual copy:**
 ```sh
-cp "/Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<skill-name>/SKILL.md" \
+cp "/Volumes/DATA EXT/Development/Repositories/__tools/dev-skills/skills/<skill-name>/SKILL.md" \
    ~/.kiro/skills/<skill-name>/SKILL.md
 ```
 
@@ -164,7 +164,7 @@ cp "/Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<skill-name
 **Which repo?**
 
 See `skill-routing` skill for the full decision tree. Quick summary:
-- New coding pattern or guideline → `ai-dev`
+- New coding pattern or guideline → `dev-skills`
 - Guitarizta domain knowledge or tool → `guitarizta-skills`
 - Host-only admin task → `local-skills`
 - Project-specific workflow → commit directly to `.kiro/skills/` in the project repo
