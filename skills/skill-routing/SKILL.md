@@ -81,7 +81,8 @@ Does it only make sense on this specific machine?
 | `git-commits` | `ai-dev` | Software craft |
 | `core-principles` | `ai-dev` | Software craft |
 | `tdd` | `ai-dev` | Software craft |
-| `code-review` | `ai-dev` | Software craft |
+| `pr-reviewer` | `dev-skills` | Software craft |
+| `pr-fixer` | `dev-skills` | Software craft |
 | `skill-writing` | `ai-dev` | Meta — how to write skills (coding tooling) |
 | `guitarizta-comms` | `guitarizta` | Domain-specific |
 | `crm` | `guitarizta` | Domain-specific |

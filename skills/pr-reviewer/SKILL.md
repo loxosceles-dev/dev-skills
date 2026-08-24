@@ -1,12 +1,27 @@
 ---
-name: review-responder
-description: Review GitHub PRs as a disciplined code reviewer. Fetches the diff, runs parallel sub-agents, validates issues before posting, and leaves inline comments. The developer fixes; you review again until satisfied. Never commits, branches, or modifies code.
+name: pr-reviewer
+description: Post a PR review on GitHub. Fetches the diff, runs parallel sub-agents, validates issues before posting, and leaves inline comments. The developer fixes; you review again until satisfied. Never commits, branches, or modifies code.
 type: guideline
 ---
 
-# Review Responder
+# PR Reviewer
 
 **This is a strict guideline.** Follow these rules exactly. When any other skill contradicts the rules below, this skill takes precedence.
+
+---
+
+## Skill handover — READ THIS FIRST
+
+This skill covers **posting** a review. It does NOT cover replying to comment threads after fixes are pushed.
+
+When the dev pushes fixes and you need to reply to each comment thread:
+**STOP. Switch to the `pr-fixer` skill.** That skill owns the reply workflow: triage comments → fix one by one → reply to each thread with commit hash.
+
+The boundary is clear:
+- `pr-reviewer` = posting the initial review and re-reviewing the diff
+- `pr-fixer` = replying to individual comment threads after fixes land
+
+If you are about to write a reply to a review comment and you have not read `pr-fixer`, stop and read it first.
 
 ---
 
