@@ -1,28 +1,12 @@
 ---
 name: pr-reviewer
 description: Post a PR review on GitHub. Fetches the diff, runs parallel sub-agents, validates issues before posting, and leaves inline comments. The developer fixes; you review again until satisfied. Never commits, branches, or modifies code.
-type: guideline
+type: pattern
 ---
 
 # PR Reviewer
 
-**This is a strict guideline.** Follow these rules exactly. When any other skill contradicts the rules below, this skill takes precedence.
-
----
-
-## 🚨 Mandatory: announce every step before you take it
-
-Before every action, output a single line stating what you are about to do and which instruction you are following. No exceptions.
-
-Examples:
-- `[pr-reviewer step 1] Pre-flight check — verifying PR is open and not a draft`
-- `[pr-reviewer step 2] Gathering context — fetching diff and guideline files`
-- `[pr-reviewer step 3] Spawning 4 parallel review agents — guideline x2, bug detector, logic+security`
-- `[pr-reviewer step 4] Validating issue #3 — checking it is in introduced code and passes the senior-engineer bar`
-- `[pr-reviewer step 6] Posting inline comment on file.ts#L42 — MUST FIX, guideline violation`
-- `[pr-reviewer step 7] Posting summary comment`
-
-If you skip this line, you are not following this skill. The developer uses these announcements to verify you are on track and to stop you if you are not.
+**This is a strict pattern.** Follow the pipeline exactly. When any other skill contradicts the rules below, this skill takes precedence.
 
 ---
 
@@ -37,8 +21,6 @@ The boundary is clear:
 - `pr-reviewer` = posting the initial review and re-reviewing the diff
 - `pr-fixer` = replying to individual comment threads after fixes land
 
-If you are about to write a reply to a review comment and you have not read `pr-fixer`, stop and read it first.
-
 ---
 
 ## Role
@@ -49,56 +31,188 @@ A review cycle is: you comment → dev pushes changes → you re-review → repe
 
 ---
 
-## Step 1: Pre-flight (fast check, stop early)
+## Pipeline
 
-Check all of these before spending any effort:
+```
+preflight → standards+spec (parallel) → 4-agent-review (parallel) → validation (parallel per issue) → post
+```
 
-- Is the PR closed? Stop.
-- Is it a draft? Stop.
-- Is it a trivial automated change (version bump, generated file, doc typo)? Stop.
-- Have you already left comments on this PR that have not been addressed yet? Stop -- wait for the dev to respond first.
+| Stage | Role | Model | Trigger |
+|-------|------|-------|---------|
+| preflight | lead-dev | Haiku | Always first |
+| standards | lead-dev | Sonnet | After preflight passes |
+| spec | lead-dev | Sonnet | After preflight passes (parallel with standards) |
+| bug-detector | lead-dev | Opus | After preflight passes (parallel) |
+| logic-security | lead-dev | Opus | After preflight passes (parallel) |
+| validation | lead-dev | Opus (bugs) / Sonnet (guidelines) | After all 4 review agents complete |
+| post | lead-dev | Sonnet | After all issues validated |
+
+---
+
+## Subagent Stage Configuration
+
+```yaml
+stages:
+  - name: preflight
+    role: lead-dev
+    model: claude-haiku-4.5
+    prompt: |
+      Check all of these and stop immediately if any fail:
+      - Is the PR closed? → output STOP: closed
+      - Is it a draft? → output STOP: draft
+      - Is it a trivial automated change (version bump, generated file, doc typo)? → output STOP: trivial
+      - Have you already left unaddressed comments on this PR? → output STOP: pending comments
+
+      If all pass, output: PROCEED
+      Then fetch and output:
+        gh pr view <PR_NUMBER> --json title,body,headRefSha,baseRefName,headRefName,files
+        gh pr diff <PR_NUMBER>
+      Collect all guideline files: root CLAUDE.md / AGENTS.md / KIRO.md, plus any in directories containing changed files.
+      Output the full SHA (40 chars) from headRefSha. Never abbreviate it.
+
+  - name: standards
+    role: lead-dev
+    model: claude-sonnet-4-5
+    depends_on: [preflight]
+    prompt: |
+      You are running the Standards axis of the code-review skill.
+      Input: the diff, PR title+body, and guideline file contents from preflight.
+      Task: audit for violations of CLAUDE.md / AGENTS.md / KIRO.md.
+      Scoping rule: only apply a guideline to files that share its directory path.
+      Output: list of issues with exact guideline quote and file:line. If none, output NONE.
+
+  - name: spec
+    role: lead-dev
+    model: claude-sonnet-4-5
+    depends_on: [preflight]
+    prompt: |
+      You are running the Spec axis of the code-review skill.
+      Input: the diff, PR title+body from preflight.
+      Task: does the code faithfully implement what the PR title+body says it does?
+      Look for: missing cases, wrong behavior, incomplete implementation.
+      Output: list of issues with file:line. If none, output NONE.
+
+  - name: bug-detector
+    role: lead-dev
+    model: claude-opus-4-5
+    depends_on: [preflight]
+    prompt: |
+      You are a bug detector. Focus only on the diff — do not read extra context.
+      Input: the diff and PR title+body from preflight.
+      Task: scan for obvious bugs — code that will definitely fail or produce wrong results.
+      High signal only. Do not flag anything you cannot validate from the diff alone.
+      Output: list of bugs with file:line and explanation. If none, output NONE.
+
+  - name: logic-security
+    role: lead-dev
+    model: claude-opus-4-5
+    depends_on: [preflight]
+    prompt: |
+      You are a logic and security reviewer. Focus only on the changed code.
+      Input: the diff and PR title+body from preflight.
+      Task: find logic errors, security issues, and incorrect behavior introduced in this PR.
+      High signal only. Flag only what you can prove from the diff.
+      Output: list of issues with file:line and explanation. If none, output NONE.
+
+  - name: validation
+    role: lead-dev
+    model: claude-sonnet-4-5
+    depends_on: [standards, spec, bug-detector, logic-security]
+    prompt: |
+      You are a validation agent. You receive all findings from the four review agents.
+      For each issue, confirm ALL of the following — drop the issue if any fail:
+        1. The issue is in introduced code, not pre-existing
+        2. The flagged code is actually reachable
+        3. The guideline cited applies to this file's path (standards issues only)
+        4. A senior engineer would actually raise this
+
+      Use Opus reasoning for bugs/logic issues. Use Sonnet reasoning for guideline violations.
+
+      For each issue output exactly one of:
+        PASS: <issue summary> — <file:line>
+        DROP: <issue summary> — reason: <why dropped>
+
+      Do not output anything else. No posting. No inline comments. Just PASS/DROP per issue.
+
+  - name: post
+    role: lead-dev
+    model: claude-sonnet-4-5
+    depends_on: [validation]
+    prompt: |
+      You are the posting agent. You receive the validated issues (PASS lines only from validation).
+
+      For each PASS issue, assign one stance:
+        MUST FIX — blocks approval, real issue, clear problem
+        CONSIDER — valid concern, not a blocker, defer to dev
+        PUSHBACK — post as a question, not a demand
+
+      Post one inline comment per issue using:
+        gh api repos/<owner>/<repo>/pulls/<PR_NUMBER>/comments \
+          -f body="<comment>" \
+          -f commit_id="<full-40-char-sha>" \
+          -f path="<file>" \
+          -F line=<line>
+
+      Link format in comment body — strictly:
+        https://github.com/<owner>/<repo>/blob/<full-40-char-sha>/path/to/file.ts#L66-L73
+      Full SHA always — never abbreviated, never shell-interpolated.
+
+      After all inline comments are posted, post one summary comment:
+        gh pr comment <PR_NUMBER> --body "## Code Review
+
+      Found N issues (X must fix, Y consider, Z questions).
+      [List each issue in one line with file:line and ruling]
+      Re-review once changes are pushed."
+
+      If no PASS issues: post "No issues found. Checked for bugs, guidelines, and spec compliance."
+
+      Never fix code. Never commit. Never create branches. Never approve while MUST FIX items are unresolved.
+```
+
+---
+
+## 🚨 Mandatory: announce every step before you take it
+
+Before every action, output a single line stating which stage you are running. No exceptions.
+
+Examples:
+- `[pr-reviewer preflight] Checking PR status and fetching diff`
+- `[pr-reviewer standards] Auditing guideline compliance`
+- `[pr-reviewer spec] Checking spec faithfulness`
+- `[pr-reviewer bug-detector] Scanning for bugs`
+- `[pr-reviewer logic-security] Checking logic and security`
+- `[pr-reviewer validation] Validating issue N — <description>`
+- `[pr-reviewer post] Posting inline comment on file.ts#L42`
+
+If you skip this line you are not following this skill. The developer uses these to verify you are on track and to stop you if you are not.
+
+---
+
+## Pre-flight Outcomes
+
+| Output | Action |
+|--------|--------|
+| `STOP: closed` | End. Do nothing. |
+| `STOP: draft` | End. Do nothing. |
+| `STOP: trivial` | End. Do nothing. |
+| `STOP: pending comments` | End. Wait for dev to respond to existing comments first. |
+| `PROCEED` | Continue to parallel stages. |
 
 Still review agent-generated PRs even with prior comments. They need more scrutiny.
 
 ---
 
-## Step 2: Gather Context
+## High Signal Only
 
-```bash
-gh pr view <PR_NUMBER> --json title,body,headRefSha,baseRefName,headRefName,files
-gh pr diff <PR_NUMBER>
-```
+False positives erode trust. Drop anything that does not meet this bar:
 
-Collect all relevant guideline files:
-- Root CLAUDE.md / AGENTS.md / KIRO.md (if any)
-- Any guideline file in a directory containing a changed file
-
-**Scoping rule:** Only apply a guideline to files that share its directory path. `src/api/CLAUDE.md` does not govern `src/ui/` files. Check path ancestry before citing a violation.
-
-Pass the PR title + body to every sub-agent you spawn. Author intent is context, not decoration.
-
----
-
-## Step 3: Four Parallel Review Agents
-
-Run all four simultaneously. Each agent gets: the diff, the PR title + body, and relevant guideline file contents.
-
-**Agent 1 + 2 -- Guideline compliance (Sonnet, run in parallel)**
-Audit for violations of CLAUDE.md / AGENTS.md / KIRO.md. Apply path-scoping rule. Return: list of issues with exact guideline quote and file:line.
-
-**Agent 3 -- Bug detector (Opus)**
-Scan the diff for obvious bugs. Focus only on the diff -- do not read extra context. Flag only significant, clear bugs. Do not flag anything you cannot validate from the diff alone.
-
-**Agent 4 -- Logic + security (Opus)**
-Look for logic errors, security issues, and incorrect behavior in introduced code. Only look within the changed code.
-
-**High signal only.** Flag:
+Flag only:
 - Code that will definitely fail to compile or parse
 - Code that will definitely produce wrong results regardless of input
 - Clear, unambiguous guideline violations you can quote exactly
 - Security issues introduced in this PR
 
-Do NOT flag:
+Never flag:
 - Pre-existing issues not in this diff
 - Something that looks like a bug but might be correct
 - Nitpicks a senior engineer would not raise
@@ -106,97 +220,19 @@ Do NOT flag:
 - General code quality concerns unless required in a guideline
 - Issues silenced by a lint-ignore comment
 - Style preferences
-- Missing test coverage as a general concern (a specific untested bug path is different)
-
----
-
-## Step 4: Validate Every Issue (Two-Pass)
-
-For each issue found in Step 3: spawn a validation sub-agent before posting anything. The validator confirms:
-- The issue is in the introduced code, not pre-existing
-- The flagged code is actually reachable
-- The guideline being cited applies to this file's path
-- A senior engineer would actually raise this
-
-Use Opus for bugs/logic. Use Sonnet for guideline violations. Drop anything that fails validation.
-
----
-
-## Step 5: Triage Surviving Issues
-
-For each validated issue, assign one of three reviewer stances:
-
-| Stance | Meaning | What you post |
-|--------|---------|---------------|
-| **MUST FIX** | Blocks approval -- real issue, clear problem | Inline comment, explain what's wrong and why |
-| **CONSIDER** | Valid concern but not a blocker -- defer to dev judgment | Inline comment marked as non-blocking |
-| **PUSHBACK** | The reviewer (you) has context suggesting the code is correct -- but post it as a question, not a demand | Inline comment asking for clarification |
-
-No silent skipping. Every validated issue gets a comment.
-
----
-
-## Step 6: Post Inline Comments
-
-Post one inline comment per issue. No duplicates.
-
-**Link format -- strictly:**
-```
-https://github.com/<owner>/<repo>/blob/<full-40-char-sha>/path/to/file.ts#L66-L73
-```
-- Full SHA always -- never abbreviated, never shell-interpolated
-- At least 1 line of context before and after the flagged range
-- Repo name must match the repo being reviewed
-
-**Comment structure:**
-- What the issue is (one sentence)
-- Why it is a problem (the reasoning -- cite the guideline or explain the bug)
-- For MUST FIX: what needs to change (direction, not a code fix for them)
-- For CONSIDER: mark it explicitly as non-blocking
-- For PUSHBACK / uncertain: phrase as a question ("Is this intentional given X?")
-
-**Committable suggestion blocks:** include them for small, self-contained changes (under 6 lines, single location) where committing the suggestion alone fully resolves the issue. Never post a partial suggestion -- if follow-up steps are needed, describe the issue instead.
-
----
-
-## Step 7: Summary Comment
-
-After all inline comments are posted, post one summary comment:
-
-```
-## Code Review
-
-Found N issues (X must fix, Y consider, Z questions).
-
-[List each issue in one line with file:line and ruling]
-
-Re-review once changes are pushed.
-```
-
-If no issues: `No issues found. Checked for bugs and guideline compliance.`
+- Missing test coverage as a general concern
 
 ---
 
 ## Re-review Cycle
 
 When the dev pushes and asks for re-review:
-1. Re-run from Step 1 (pre-flight still applies)
+1. Re-run from preflight
 2. Focus the diff on what changed since your last review
 3. Check that all MUST FIX items from the last round are addressed
-4. If a MUST FIX is not addressed, re-post it -- do not let it drop
+4. If a MUST FIX is not addressed, re-post it — do not let it drop
 5. If new issues appear in the new diff, post those too
 6. Approve only when all MUST FIX items are resolved
-
----
-
-## Pushback Discipline
-
-If you think a piece of code is correct and a common reviewer would flag it, post it as a question rather than a demand. Give the dev a chance to explain. If their explanation is convincing, resolve the comment. If not, escalate to MUST FIX with the new context.
-
-Format for uncertain comments:
-```
-[Question] Is this intentional? [Specific concern]. I'd expect [X] here given [constraint/pattern].
-```
 
 ---
 
