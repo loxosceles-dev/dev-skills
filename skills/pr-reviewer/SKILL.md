@@ -69,8 +69,8 @@ stages:
         gh pr review <PR_NUMBER> --json comments,reviews (fetch all existing comments and reviews)
       Output the full SHA (40 chars) from headRefSha. Never abbreviate it.
 
-      Summarise existing comments as: [existing] <file:line> — <summary>
-      This list is passed to all review agents so they do not duplicate already-raised issues.
+      Summarise existing comments as: [existing] <file:line> — <reviewer> — <summary>
+      This list is passed to all review agents so they can behave like a normal reviewer who has read the thread.
 
       Collect all guideline files:
         - Root CLAUDE.md, AGENTS.md, KIRO.md
@@ -92,8 +92,8 @@ stages:
       Input: the diff, PR title+body, ALL guideline file contents listed in preflight's "Standards files collected" output, and the existing comments list from preflight.
       Task: audit for violations of every collected standards file.
       Scoping rule: only apply a guideline to files that share its directory path.
-      Deduplication rule: do NOT raise any issue already covered by an existing comment — check the [existing] list from preflight.
-      Output: list of NEW issues only, with exact guideline quote and file:line. If none, output NONE.
+      Existing comments: behave like a normal reviewer who has read the thread. Add new issues, agree with prior comments, challenge them, or add nuance. Do not re-post the identical point verbatim.
+      Output: list of issues with exact guideline quote and file:line. If none, output NONE.
 
   - name: spec
     role: lead-dev
@@ -104,8 +104,8 @@ stages:
       Input: the diff, PR title+body, and existing comments list from preflight.
       Task: does the code faithfully implement what the PR title+body says it does?
       Look for: missing cases, wrong behavior, incomplete implementation.
-      Deduplication rule: do NOT raise any issue already covered by an existing comment.
-      Output: list of NEW issues with file:line. If none, output NONE.
+      Existing comments: behave like a normal reviewer who has read the thread. Add new issues, agree, challenge, or add nuance. Do not re-post the identical point verbatim.
+      Output: list of issues with file:line. If none, output NONE.
 
   - name: bug-detector
     role: lead-dev
@@ -116,8 +116,8 @@ stages:
       Input: the diff, PR title+body, and existing comments list from preflight.
       Task: scan for obvious bugs — code that will definitely fail or produce wrong results.
       High signal only. Do not flag anything you cannot validate from the diff alone.
-      Deduplication rule: do NOT raise any issue already covered by an existing comment.
-      Output: list of NEW bugs with file:line and explanation. If none, output NONE.
+      Existing comments: behave like a normal reviewer who has read the thread. Add new issues, agree, challenge, or add nuance. Do not re-post the identical point verbatim.
+      Output: list of bugs with file:line and explanation. If none, output NONE.
 
   - name: logic-security
     role: lead-dev
@@ -128,8 +128,8 @@ stages:
       Input: the diff, PR title+body, and existing comments list from preflight.
       Task: find logic errors, security issues, and incorrect behavior introduced in this PR.
       High signal only. Flag only what you can prove from the diff.
-      Deduplication rule: do NOT raise any issue already covered by an existing comment.
-      Output: list of NEW issues with file:line and explanation. If none, output NONE.
+      Existing comments: behave like a normal reviewer who has read the thread. Add new issues, agree, challenge, or add nuance. Do not re-post the identical point verbatim.
+      Output: list of issues with file:line and explanation. If none, output NONE.
 
   - name: validation
     role: lead-dev
@@ -170,18 +170,14 @@ stages:
           -f path="<file>" \
           -F line=<line>
 
+      Each comment must be focused on the specific code at that line. No generic summaries.
+
       Link format in comment body — strictly:
         https://github.com/<owner>/<repo>/blob/<full-40-char-sha>/path/to/file.ts#L66-L73
       Full SHA always — never abbreviated, never shell-interpolated.
 
-      After all inline comments are posted, post one summary comment:
-        gh pr comment <PR_NUMBER> --body "## Code Review
-
-      Found N issues (X must fix, Y consider, Z questions).
-      [List each issue in one line with file:line and ruling]
-      Re-review once changes are pushed."
-
-      If no PASS issues: post "No issues found. Checked for bugs, guidelines, and spec compliance."
+      Do not post a separate summary comment. The inline comments are the review.
+      If no PASS issues: post one comment on the PR saying "No new issues found."
 
       Never fix code. Never commit. Never create branches. Never approve while MUST FIX items are unresolved.
 ```
@@ -257,7 +253,8 @@ When the dev pushes and asks for re-review:
 - Never create branches
 - Never open issues (that is the dev's job after approval)
 - Never request re-review yourself (let the dev do it)
-- Never post a comment on an issue already raised by any prior reviewer or prior self — check the existing comments list from preflight
+- Never post a comment that restates verbatim what another reviewer already said
+- Never post a detached summary comment — comments belong on the code they're about
 - Never approve while MUST FIX items are unresolved
 - Never flag the same pre-existing issue twice
 
