@@ -39,7 +39,7 @@ preflight → standards+spec (parallel) → 4-agent-review (parallel) → valida
 
 | Stage | Role | Model | Trigger |
 |-------|------|-------|---------|
-| preflight | lead-dev | Haiku | Always first |
+| preflight | lead-dev | Sonnet | Always first |
 | standards | lead-dev | Sonnet | After preflight passes |
 | spec | lead-dev | Sonnet | After preflight passes (parallel with standards) |
 | bug-detector | lead-dev | Opus | After preflight passes (parallel) |
@@ -55,7 +55,7 @@ preflight → standards+spec (parallel) → 4-agent-review (parallel) → valida
 stages:
   - name: preflight
     role: lead-dev
-    model: claude-haiku-4.5
+    model: claude-sonnet-4-5
     prompt: |
       Check all of these and stop immediately if any fail:
       - Is the PR closed? → output STOP: closed
