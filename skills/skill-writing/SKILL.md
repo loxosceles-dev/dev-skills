@@ -121,12 +121,41 @@ Be direct. Use imperative form. Avoid explaining why at length — guidelines ar
 - [ ] Code examples are minimal and use placeholders
 - [ ] Document is scannable (headers, bullets, bold)
 - [ ] Ends with Progressive Improvement section
+- [ ] `CHANGELOG.md` exists in the skill directory (create it on first edit if missing)
 
 ---
 
-## Progressive Improvement
+## Skill Development Log
 
-Every skill must end with this section:
+Skills are wrong on first use — nearly every time. The log exists to capture what was actually learned in production, so the next edit starts from truth rather than assumption.
+
+### Every skill directory must have a CHANGELOG.md
+
+```
+skills/<name>/
+  SKILL.md
+  CHANGELOG.md
+```
+
+### CHANGELOG format
+
+```markdown
+## YYYY-MM-DD — <one-line description of what was wrong and what was fixed>
+
+**Problem:** What the skill caused the agent to do incorrectly.
+**Fix:** What was changed and why.
+**Verified:** How you confirmed the fix worked (e.g., "re-triggered in guitarizta-services session, agent followed new triage checklist correctly").
+```
+
+One entry per fix session. Do not collapse multiple fixes into one entry — keep them separate so the history is readable.
+
+### When to add an entry
+
+Every time a skill is corrected during use — whether the correction was made in conversation, by the developer, or by the agent itself via Progressive Improvement. If the session ends and no entry was added, the learning is lost.
+
+---
+
+
 
 ```markdown
 ---

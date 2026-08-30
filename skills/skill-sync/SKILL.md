@@ -165,18 +165,40 @@ This deploys physical skill files flat to `~/.kiro/skills/<skill-name>/`.
 
 ## Authoring
 
-- Edit the skill in the appropriate repo under `__tools/`
-- Push directly to `main` (no PR needed for skill/agent-only changes)
-- Skills are self-contained: `SKILL.md` + any scripts/assets in the same directory
-- After pushing, run `apm update --yes` on the host to pull the latest
+### 🚨 Local edits are temporary — the repo is the source of truth
 
-**Which repo?**
+**A skill edited only in `.kiro/skills/` is not saved. It will be overwritten on the next `apm update`.**
+
+Local is a scratch pad. The repo is truth. Pushing is mandatory, not a follow-up task.
+
+### Skill edit workflow — follow this exactly
+
+```
+1. FIX     — edit the skill in the local .kiro/skills/<name>/SKILL.md
+2. TEST    — trigger the skill in a real session; verify the behavior is correct
+3. PUSH    — copy the verified change to __tools/<repo>/skills/<name>/SKILL.md
+             append an entry to CHANGELOG.md (see skill-writing for log format)
+             git add + commit: "fix: Update <name> skill — <one-line reason>"
+             git push to main
+4. SYNC    — pull from remote (NOT from local edits):
+             source ~/.secrets.d/gh.env && apm update --yes
+5. VERIFY  — confirm the deployed version matches the intended change
+             A skill is not done until this step passes.
+```
+
+**Never skip steps 3–5.** If the session ends before step 3, the edit is lost. If you skip step 5, you have no confirmation the correct version was deployed.
+
+**Which repo to edit?**
 
 See `skill-routing` skill for the full decision tree. Quick summary:
 - New coding pattern or guideline → `dev-skills`
 - Guitarizta domain knowledge or tool → `guitarizta-skills`
 - Host-only admin task → `local-skills`
 - Project-specific workflow → commit directly to `.kiro/skills/` in the project repo
+
+Other authoring notes:
+- Skills are self-contained: `SKILL.md` + `CHANGELOG.md` + any scripts/assets in the same directory
+- Push directly to `main` (no PR needed for skill/agent-only changes)
 
 ## Projects Using This System
 
