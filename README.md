@@ -1,4 +1,4 @@
-# ai-dev
+# dev-skills
 
 Universal coding and project-setup skills and agents for all development projects.
 
@@ -9,7 +9,7 @@ Universal coding and project-setup skills and agents for all development project
 ## Install skills into a project
 
 ```sh
-npx -y skills add loxosceles/ai-dev --agent claude-code github-copilot codex kiro-cli -y
+npx -y skills add loxosceles-dev/dev-skills --agent claude-code github-copilot codex kiro-cli -y
 ```
 
 ## Structure

@@ -36,7 +36,7 @@ New projects are created from blueprints stored at `loxosceles/project-blueprint
 9. **Run verification**: Execute all verification commands at the end. All must pass.
 10. **GitHub Copilot instructions**: Copy `fragments/common/github/copilot-instructions.md` to `.github/copilot-instructions.md` and `fragments/common/github/copilot/review.md` to `.github/copilot/review.md`. These provide code quality guidelines for Copilot Chat and PR reviews.
 11. **Install skills**:
-    - Run `npx skills add loxosceles/ai-dev --agent claude-code github-copilot codex kiro-cli -y` and ask about additional third-party skills.
+    - Run `npx skills add loxosceles-dev/dev-skills --agent claude-code github-copilot codex kiro-cli -y` and ask about additional third-party skills.
     - Pre-create all host mount targets (Docker creates missing sources as root-owned, breaking permissions):
       ```bash
       PROJECT=<project-name>

@@ -119,7 +119,7 @@ Commit: `chore: Add direnv environment configuration`
 
 #### Agent Skills (APM)
 
-- If `apm.yml` does not exist: create it with the standard `ai-dev` dependency.
+- If `apm.yml` does not exist: create it with the standard `dev-skills` dependency.
   ```yaml
   name: <project-name>
   version: 1.0.0
@@ -131,7 +131,7 @@ Commit: `chore: Add direnv environment configuration`
     - agent-skills
   dependencies:
     apm:
-      - loxosceles/ai-dev#main
+      - loxosceles-dev/dev-skills#main
     mcp: []
   ```
 - Run `apm install` to generate `apm.lock.yaml`.
