@@ -180,8 +180,9 @@ Local is a scratch pad. The repo is truth. Pushing is mandatory, not a follow-up
              append an entry to CHANGELOG.md (see skill-writing for log format)
              git add + commit: "fix: Update <name> skill — <one-line reason>"
              git push to main
-4. SYNC    — pull from remote (NOT from local edits):
-             source ~/.secrets.d/gh.env && apm update --yes
+4. SYNC    — pull from remote using the safe wrapper (blocks if you have unpushed local edits):
+             bash .kiro/skills/skill-sync/apm-safe-update.sh
+             Never run bare `apm update --yes` — it will silently overwrite unpushed local edits.
 5. VERIFY  — confirm the deployed version matches the intended change
              A skill is not done until this step passes.
 ```
