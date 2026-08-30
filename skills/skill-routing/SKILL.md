@@ -14,7 +14,7 @@ type: guideline
 
 | Package | Directory | Contains | Repo |
 |---------|-----------|----------|------|
-| `ai-dev` | `~/.kiro/skills/ai-dev/` | Code quality, software craft | `loxosceles/ai-dev` |
+| `dev-skills` | `~/.kiro/skills/dev-skills/` | Code quality, software craft | `loxosceles-dev/dev-skills` |
 | `agent-ops` | `~/.kiro/skills/agent-ops/` | How agents work: review pipelines, research, handoff, orchestration | `loxosceles/agent-ops-skills` |
 | `shared` | `~/.kiro/skills/shared/` | Domain-agnostic tools: pdf, html, browser, publishing | `loxosceles/shared-skills` |
 | `guitarizta` | `~/.kiro/skills/guitarizta/` | Guitarizta business, product, KB | `loxosceles/guitarizta-skills` |
@@ -48,7 +48,7 @@ Is this a tool any agent might use regardless of domain?
 Is this about code quality or software craft?
 (git conventions, testing patterns, security, code review, frontend standards)
 │
-└─ YES → ai-dev
+└─ YES → dev-skills
 
 Is this Guitarizta business/product/KB?
 │
@@ -78,12 +78,12 @@ Does it only make sense on this specific machine?
 | `publish-html-report` | `shared` | Tool — domain-agnostic capability |
 | `wizard` | `shared` | Tool — domain-agnostic capability |
 | `playwright-service` | `shared` | Tool — browser automation |
-| `git-commits` | `ai-dev` | Software craft |
-| `core-principles` | `ai-dev` | Software craft |
-| `tdd` | `ai-dev` | Software craft |
+| `git-commits` | `dev-skills` | Software craft |
+| `core-principles` | `dev-skills` | Software craft |
+| `tdd` | `dev-skills` | Software craft |
 | `pr-reviewer` | `dev-skills` | Software craft |
 | `pr-fixer` | `dev-skills` | Software craft |
-| `skill-writing` | `ai-dev` | Meta — how to write skills (coding tooling) |
+| `skill-writing` | `dev-skills` | Meta — how to write skills (coding tooling) |
 | `guitarizta-comms` | `guitarizta` | Domain-specific |
 | `crm` | `guitarizta` | Domain-specific |
 | `inbox-processing` | `guitarizta` | Domain-specific |
@@ -100,7 +100,7 @@ Does it only make sense on this specific machine?
 
 ```json
 // In an agent's resources field:
-"skill://~/.kiro/skills/ai-dev/*/SKILL.md",       // glob — own package
+"skill://~/.kiro/skills/dev-skills/*/SKILL.md",       // glob — own package
 "skill://~/.kiro/skills/agent-ops/*/SKILL.md",    // glob — own package
 "skill://~/.kiro/skills/3p/matt-pocock/grill-me/SKILL.md",  // exact — 3p
 ```
@@ -114,7 +114,7 @@ Adding a 3p skill = add the exact path to the specific agent(s) that need it.
 ## Where to Edit the File
 
 ```
-ai-dev skill:        /Volumes/DATA EXT/Development/Repositories/__tools/ai-dev/skills/<name>/SKILL.md
+dev-skills skill:    /Volumes/DATA EXT/Development/Repositories/__tools/dev-skills/skills/<name>/SKILL.md
 agent-ops skill:     /Volumes/DATA EXT/Development/Repositories/__tools/agent-ops-skills/skills/<name>/SKILL.md
 shared skill:        /Volumes/DATA EXT/Development/Repositories/__tools/shared-skills/skills/<name>/SKILL.md
 guitarizta skill:    /Volumes/DATA EXT/Development/Repositories/__tools/guitarizta-skills/skills/<name>/SKILL.md
@@ -149,9 +149,9 @@ If an upstream 3p skill doesn't behave the way you need:
 
 ❌ **Do not put a project-specific skill in any shared package** — commit it to the project's `.kiro/skills/` instead.
 
-❌ **Do not add a skill to `ai-dev` that references Guitarizta-specific paths** — `ai-dev` is public and project-agnostic.
+❌ **Do not add a skill to `dev-skills` that references Guitarizta-specific paths** — `dev-skills` is public and project-agnostic.
 
-❌ **Do not hardcode machine paths in `ai-dev`, `agent-ops`, or `shared`** — machine paths belong in `local` or project skills only.
+❌ **Do not hardcode machine paths in `dev-skills`, `agent-ops`, or `shared`** — machine paths belong in `local` or project skills only.
 
 ---
 

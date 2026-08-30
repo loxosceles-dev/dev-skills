@@ -10,6 +10,22 @@ type: guideline
 
 ---
 
+## 🚨 Mandatory: announce every step before you take it
+
+Before every action, output a single line stating what you are about to do and which instruction you are following. No exceptions.
+
+Examples:
+- `[pr-reviewer step 1] Pre-flight check — verifying PR is open and not a draft`
+- `[pr-reviewer step 2] Gathering context — fetching diff and guideline files`
+- `[pr-reviewer step 3] Spawning 4 parallel review agents — guideline x2, bug detector, logic+security`
+- `[pr-reviewer step 4] Validating issue #3 — checking it is in introduced code and passes the senior-engineer bar`
+- `[pr-reviewer step 6] Posting inline comment on file.ts#L42 — MUST FIX, guideline violation`
+- `[pr-reviewer step 7] Posting summary comment`
+
+If you skip this line, you are not following this skill. The developer uses these announcements to verify you are on track and to stop you if you are not.
+
+---
+
 ## Skill handover — READ THIS FIRST
 
 This skill covers **posting** a review. It does NOT cover replying to comment threads after fixes are pushed.

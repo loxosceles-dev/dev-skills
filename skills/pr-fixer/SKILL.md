@@ -10,6 +10,21 @@ type: guideline
 
 ---
 
+## 🚨 Mandatory: announce every step before you take it
+
+Before every action, output a single line stating what you are about to do and which instruction you are following. No exceptions.
+
+Examples:
+- `[pr-fixer step 1] Triaging all comments — listing each with fix/defer decision`
+- `[pr-fixer step 2] Fixing comment #1234 (path/to/file.ts line 42) — minor rename, trivial risk`
+- `[pr-fixer step 3] Committing fix — following git-commits skill`
+- `[pr-fixer step 3] Replying to comment #1234 — using gh api command from Reply format section`
+- `[pr-fixer step 3] Getting comment IDs — running gh api list command`
+
+If you skip this line, you are not following this skill. The developer uses these announcements to verify you are on track and to stop you if you are not.
+
+---
+
 ## Skill handover — READ THIS FIRST
 
 This skill covers **responding to** review comments after fixes are pushed. It does NOT cover posting the initial review.
@@ -29,7 +44,7 @@ If you are about to post a new review comment and you have not read `pr-reviewer
 
 1. **Triage** — Read all comments first. For each one, decide: fix now, or defer with an issue. Write your decision and one-line rationale on each item. This becomes your working checklist.
 2. **Work one by one** — Pick a comment, fix it, test it, commit it. Then move to the next. Do not batch fixes across comments.
-3. **Reply** — After each fix is committed, reply to that comment thread with the commit hash and a brief explanation.
+3. **Reply** — After each fix is committed, reply to that specific comment thread using the `gh api` command in the **Reply format** section below. Use the full 40-character commit hash. Do not move to the next comment until the reply is posted.
 
 ---
 
@@ -88,14 +103,24 @@ The gate:
 
 ## Reply format
 
-For a fixed comment:
+**The exact command to reply to a comment thread:**
+```bash
+gh api \
+  repos/<owner>/<repo>/pulls/comments/<comment_id>/replies \
+  -f body="<reply text>"
 ```
-Fixed in <commit-hash>
+
+Get the comment ID from: `gh pr view <PR_NUMBER> --json reviews,comments`  
+Or from the URL of the inline comment on GitHub — the number at the end of the URL fragment.
+
+For a fixed comment, the reply text is:
+```
+Fixed in <full-40-char-commit-hash>
 
 [Brief explanation of what changed and why, when non-obvious]
 ```
 
-For a deferred comment:
+For a deferred comment, the reply text is:
 ```
 Not addressed in this PR. Tracked in <issue-url>.
 
@@ -105,6 +130,26 @@ Not addressed in this PR. Tracked in <issue-url>.
 **The issue link is mandatory when deferring.** Create the GitHub issue first, then paste the URL into the reply. A reply that says "not addressed" without a link is incomplete — the issue will be lost.
 
 **Never resolve comment threads.** Resolving a thread on GitHub is the human reviewer's job. After replying, stop. Do not click "Resolve conversation" or call any API that marks a thread as resolved. The human decides when a comment is satisfied.
+
+### Getting comment IDs
+
+```bash
+# List all review comments (inline) on the PR
+gh api repos/<owner>/<repo>/pulls/<PR_NUMBER>/comments --jq '.[] | {id: .id, path: .path, line: .line, body: .body}'
+```
+
+Each comment has a numeric `id`. Use that id in the reply command above. One reply per comment — do not reply to the same comment twice.
+
+### Verify the reply was posted
+
+After running the reply command, immediately verify it landed:
+
+```bash
+gh api repos/<owner>/<repo>/pulls/comments/<comment_id>/replies \
+  --jq '.[-1] | {id: .id, body: .body}'
+```
+
+If the reply is not there, the command failed. Do not move to the next comment until this check passes.
 
 ---
 
