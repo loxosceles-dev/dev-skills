@@ -165,21 +165,24 @@ This deploys physical skill files flat to `~/.kiro/skills/<skill-name>/`.
 
 ## Authoring
 
-### 🚨 Local edits are temporary — the repo is the source of truth
+### 🚨 Never edit skills inside a project folder
 
-**A skill edited only in `.kiro/skills/` is not saved. It will be overwritten on the next `apm update`.**
+**Skills are authored in `__tools/<repo>/skills/`, not inside any project.**
 
-Local is a scratch pad. The repo is truth. Pushing is mandatory, not a follow-up task.
+`.kiro/skills/` is a deployment target — APM writes to it, you read from it. Editing there directly is always wrong. The only valid reason to temporarily copy a file there is to test a change before pushing — and even then, treat it as throwaway.
 
 ### Skill edit workflow — follow this exactly
 
 ```
-1. FIX     — edit the skill in the local .kiro/skills/<name>/SKILL.md
+1. EDIT    — edit the skill in __tools/<repo>/skills/<name>/SKILL.md
+             Never edit in .kiro/skills/ — that is a deployment target, not a workspace
 2. TEST    — trigger the skill in a real session; verify the behavior is correct
-3. PUSH    — copy the verified change to __tools/<repo>/skills/<name>/SKILL.md
-             append an entry to CHANGELOG.md (see skill-writing for log format)
-             git add + commit: "fix: Update <name> skill — <one-line reason>"
-             git push to main
+             (APM will have deployed the previous version to .kiro/skills/ — you can
+             temporarily copy your edit there to test it, but do not treat that copy
+             as the source of truth)
+3. PUSH    — once verified, commit and push to main in __tools/<repo>/
+             append an entry to __tools/<repo>/skills/<name>/CHANGELOG.md
+             git commit: "fix: Update <name> skill — <one-line reason>"
 4. SYNC    — pull from remote using the safe wrapper (blocks if you have unpushed local edits):
              bash .kiro/skills/skill-sync/apm-safe-update.sh
              Never run bare `apm update --yes` — it will silently overwrite unpushed local edits.
