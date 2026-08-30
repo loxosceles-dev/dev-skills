@@ -6,7 +6,7 @@
 # yet — running apm update would destroy your work.
 #
 # Safe case (allows update):
-#   local SHA != lockfile SHA, but lockfile mtime > local mtime
+#   local SHA != lockfile SHA, but local mtime <= lockfile mtime
 #   → repo moved forward, you just haven't synced yet. Normal update.
 #
 # Dangerous case (blocks):
@@ -17,50 +17,63 @@ set -euo pipefail
 
 LOCK_FILE="apm.lock.yaml"
 
+echo ""
+echo "🔍 apm-safe-update — checking for unpushed local skill edits..."
+echo ""
+
 if [[ ! -f "$LOCK_FILE" ]]; then
   echo "❌ No apm.lock.yaml found. Run from project root."
   exit 1
 fi
 
 blocked=()
+checked=0
+clean=0
 
 # Parse lockfile: extract pairs of (path, expected_sha)
 # Lines look like: "    .kiro/skills/pr-fixer/SKILL.md: sha256:abc123..."
 while IFS= read -r line; do
-  # Match lines with .kiro/skills/ path and sha256
   if [[ "$line" =~ ^[[:space:]]+(\.kiro/skills/[^:]+):[[:space:]]+sha256:([a-f0-9]+) ]]; then
     rel_path="${BASH_REMATCH[1]}"
     expected_sha="${BASH_REMATCH[2]}"
 
     [[ -f "$rel_path" ]] || continue
 
-    # Compute actual SHA of deployed file (sha256, strip filename)
+    checked=$((checked + 1))
     actual_sha=$(shasum -a 256 "$rel_path" | awk '{print $1}')
 
     if [[ "$actual_sha" == "$expected_sha" ]]; then
-      continue  # File matches lockfile — clean
+      clean=$((clean + 1))
+      echo "  ✓  $rel_path"
+      continue
     fi
 
-    # SHAs differ. Check which is newer: local file vs lockfile itself.
-    # If local file is newer than the lockfile, it has unpushed edits.
+    # SHAs differ — check which is newer
     local_mtime=$(stat -f "%m" "$rel_path" 2>/dev/null || stat -c "%Y" "$rel_path")
     lock_mtime=$(stat -f "%m" "$LOCK_FILE" 2>/dev/null || stat -c "%Y" "$LOCK_FILE")
 
     if [[ "$local_mtime" -gt "$lock_mtime" ]]; then
+      echo "  ✎  $rel_path  ← unpushed local edit"
       blocked+=("$rel_path")
+    else
+      # Local is older — repo moved forward, normal update case
+      echo "  ↑  $rel_path  ← will be updated from repo"
+      clean=$((clean + 1))
     fi
   fi
 done < "$LOCK_FILE"
 
+echo ""
+echo "  Checked $checked file(s) — $clean clean, ${#blocked[@]} blocked"
+echo ""
+
 if [[ ${#blocked[@]} -gt 0 ]]; then
-  echo ""
-  echo "🚫 apm update blocked — local edits would be overwritten:"
+  echo "🚫 Blocked — these files have unpushed local edits that would be overwritten:"
   echo ""
   for f in "${blocked[@]}"; do
     echo "  ✎  $f"
   done
   echo ""
-  echo "These files were edited locally after the last apm sync."
   echo "Push your changes to the canonical repo first, then re-run."
   echo ""
   echo "  Workflow: fix locally → test → push to repo → apm-safe-update → verify"
@@ -68,7 +81,7 @@ if [[ ${#blocked[@]} -gt 0 ]]; then
   exit 1
 fi
 
-echo "✅ No unpushed local skill edits detected. Running apm update..."
+echo "✅ Safe to update. Pulling from remote..."
 echo ""
 
 # Source GH_TOKEN if available
