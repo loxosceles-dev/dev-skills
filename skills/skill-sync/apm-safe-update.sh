@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # apm-safe-update — safe wrapper around `apm update --yes`
 #
-# Blocks if any APM-owned file in .kiro/skills/ has local edits newer than
+# Blocks if any APM-owned file in .kiro/ (skills, hooks) has local edits newer than
 # what the lockfile expects. That means: you edited locally but haven't pushed
 # yet — running apm update would destroy your work.
+#
+# Agents are NOT checked — they are managed via symlinks, not deployed by APM.
 #
 # Safe case (allows update):
 #   local SHA != lockfile SHA, but local mtime <= lockfile mtime
@@ -30,10 +32,11 @@ blocked=()
 checked=0
 clean=0
 
-# Parse lockfile: extract pairs of (path, expected_sha)
+# Parse lockfile: extract pairs of (path, expected_sha) for all APM-owned .kiro/ paths
 # Lines look like: "    .kiro/skills/pr-fixer/SKILL.md: sha256:abc123..."
+#                  "    .kiro/hooks/dev-skills-shell-audit-pretooluse-1.json: sha256:abc123..."
 while IFS= read -r line; do
-  if [[ "$line" =~ ^[[:space:]]+(\.kiro/skills/[^:]+):[[:space:]]+sha256:([a-f0-9]+) ]]; then
+  if [[ "$line" =~ ^[[:space:]]+(\.kiro/[^:]+):[[:space:]]+sha256:([a-f0-9]+) ]]; then
     rel_path="${BASH_REMATCH[1]}"
     expected_sha="${BASH_REMATCH[2]}"
 
