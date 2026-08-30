@@ -67,8 +67,18 @@ stages:
       Then fetch and output:
         gh pr view <PR_NUMBER> --json title,body,headRefSha,baseRefName,headRefName,files
         gh pr diff <PR_NUMBER>
-      Collect all guideline files: root CLAUDE.md / AGENTS.md / KIRO.md, plus any in directories containing changed files.
       Output the full SHA (40 chars) from headRefSha. Never abbreviate it.
+
+      Collect all guideline files:
+        - Root CLAUDE.md, AGENTS.md, KIRO.md
+        - Any of those files in directories containing changed files
+        - Any additional standards files explicitly referenced in CLAUDE.md or AGENTS.md
+
+      After collecting, you MUST output — before proceeding to any other stage:
+        [preflight] Standards files collected: <list each file path found>
+        [preflight] Standards files NOT FOUND: <list any files referenced but missing, or NONE>
+
+      STOP HERE. Do not proceed to parallel stages until this output is visible.
 
   - name: standards
     role: lead-dev
@@ -76,8 +86,8 @@ stages:
     depends_on: [preflight]
     prompt: |
       You are running the Standards axis of the code-review skill.
-      Input: the diff, PR title+body, and guideline file contents from preflight.
-      Task: audit for violations of CLAUDE.md / AGENTS.md / KIRO.md.
+      Input: the diff, PR title+body, and ALL guideline file contents listed in preflight's "Standards files collected" output.
+      Task: audit for violations of every collected standards file.
       Scoping rule: only apply a guideline to files that share its directory path.
       Output: list of issues with exact guideline quote and file:line. If none, output NONE.
 
