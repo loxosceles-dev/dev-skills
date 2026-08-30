@@ -174,23 +174,22 @@ This deploys physical skill files flat to `~/.kiro/skills/<skill-name>/`.
 ### Skill edit workflow — follow this exactly
 
 ```
-1. EDIT    — edit the skill in __tools/<repo>/skills/<name>/SKILL.md
-             Never edit in .kiro/skills/ — that is a deployment target, not a workspace
-2. TEST    — trigger the skill in a real session; verify the behavior is correct
-             (APM will have deployed the previous version to .kiro/skills/ — you can
-             temporarily copy your edit there to test it, but do not treat that copy
-             as the source of truth)
-3. PUSH    — once verified, commit and push to main in __tools/<repo>/
-             append an entry to __tools/<repo>/skills/<name>/CHANGELOG.md
-             git commit: "fix: Update <name> skill — <one-line reason>"
-4. SYNC    — pull from remote using the safe wrapper (blocks if you have unpushed local edits):
-             bash .kiro/skills/skill-sync/apm-safe-update.sh
-             Never run bare `apm update --yes` — it will silently overwrite unpushed local edits.
-5. VERIFY  — confirm the deployed version matches the intended change
-             A skill is not done until this step passes.
+1. ACTIVATE — symlink the skill for live editing (auto-detects the correct repo):
+               bash .kiro/skills/skill-sync/skill-dev.sh <skill-name>
+               Kiro now reads directly from __tools/<repo>/skills/<name>/
+
+2. EDIT+TEST — edit in __tools/<repo>/skills/<name>/SKILL.md
+               Trigger the skill in a real session. Changes are live immediately.
+               Iterate until the behavior is correct.
+               Append an entry to __tools/<repo>/skills/<name>/CHANGELOG.md.
+
+3. RELEASE  — commit, push, and restore the deployed file in one step:
+               bash .kiro/skills/skill-sync/skill-release.sh <skill-name>
+               Blocks if there are uncommitted changes or unpushed commits.
+               On success: removes symlink, runs apm-safe-update, deploys from remote.
 ```
 
-**Never skip steps 3–5.** If the session ends before step 3, the edit is lost. If you skip step 5, you have no confirmation the correct version was deployed.
+Do not bypass the scripts. They are the enforcement — no manual symlinking, no manual `apm update`.
 
 **Which repo to edit?**
 
