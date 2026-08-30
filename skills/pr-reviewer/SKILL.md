@@ -61,13 +61,16 @@ stages:
       - Is the PR closed? → output STOP: closed
       - Is it a draft? → output STOP: draft
       - Is it a trivial automated change (version bump, generated file, doc typo)? → output STOP: trivial
-      - Have you already left unaddressed comments on this PR? → output STOP: pending comments
 
       If all pass, output: PROCEED
       Then fetch and output:
         gh pr view <PR_NUMBER> --json title,body,headRefSha,baseRefName,headRefName,files
         gh pr diff <PR_NUMBER>
+        gh pr review <PR_NUMBER> --json comments,reviews (fetch all existing comments and reviews)
       Output the full SHA (40 chars) from headRefSha. Never abbreviate it.
+
+      Summarise existing comments as: [existing] <file:line> — <summary>
+      This list is passed to all review agents so they do not duplicate already-raised issues.
 
       Collect all guideline files:
         - Root CLAUDE.md, AGENTS.md, KIRO.md
@@ -86,10 +89,11 @@ stages:
     depends_on: [preflight]
     prompt: |
       You are running the Standards axis of the code-review skill.
-      Input: the diff, PR title+body, and ALL guideline file contents listed in preflight's "Standards files collected" output.
+      Input: the diff, PR title+body, ALL guideline file contents listed in preflight's "Standards files collected" output, and the existing comments list from preflight.
       Task: audit for violations of every collected standards file.
       Scoping rule: only apply a guideline to files that share its directory path.
-      Output: list of issues with exact guideline quote and file:line. If none, output NONE.
+      Deduplication rule: do NOT raise any issue already covered by an existing comment — check the [existing] list from preflight.
+      Output: list of NEW issues only, with exact guideline quote and file:line. If none, output NONE.
 
   - name: spec
     role: lead-dev
@@ -97,10 +101,11 @@ stages:
     depends_on: [preflight]
     prompt: |
       You are running the Spec axis of the code-review skill.
-      Input: the diff, PR title+body from preflight.
+      Input: the diff, PR title+body, and existing comments list from preflight.
       Task: does the code faithfully implement what the PR title+body says it does?
       Look for: missing cases, wrong behavior, incomplete implementation.
-      Output: list of issues with file:line. If none, output NONE.
+      Deduplication rule: do NOT raise any issue already covered by an existing comment.
+      Output: list of NEW issues with file:line. If none, output NONE.
 
   - name: bug-detector
     role: lead-dev
@@ -108,10 +113,11 @@ stages:
     depends_on: [preflight]
     prompt: |
       You are a bug detector. Focus only on the diff — do not read extra context.
-      Input: the diff and PR title+body from preflight.
+      Input: the diff, PR title+body, and existing comments list from preflight.
       Task: scan for obvious bugs — code that will definitely fail or produce wrong results.
       High signal only. Do not flag anything you cannot validate from the diff alone.
-      Output: list of bugs with file:line and explanation. If none, output NONE.
+      Deduplication rule: do NOT raise any issue already covered by an existing comment.
+      Output: list of NEW bugs with file:line and explanation. If none, output NONE.
 
   - name: logic-security
     role: lead-dev
@@ -119,10 +125,11 @@ stages:
     depends_on: [preflight]
     prompt: |
       You are a logic and security reviewer. Focus only on the changed code.
-      Input: the diff and PR title+body from preflight.
+      Input: the diff, PR title+body, and existing comments list from preflight.
       Task: find logic errors, security issues, and incorrect behavior introduced in this PR.
       High signal only. Flag only what you can prove from the diff.
-      Output: list of issues with file:line and explanation. If none, output NONE.
+      Deduplication rule: do NOT raise any issue already covered by an existing comment.
+      Output: list of NEW issues with file:line and explanation. If none, output NONE.
 
   - name: validation
     role: lead-dev
@@ -205,10 +212,7 @@ If you skip this line you are not following this skill. The developer uses these
 | `STOP: closed` | End. Do nothing. |
 | `STOP: draft` | End. Do nothing. |
 | `STOP: trivial` | End. Do nothing. |
-| `STOP: pending comments` | End. Wait for dev to respond to existing comments first. |
-| `PROCEED` | Continue to parallel stages. |
-
-Still review agent-generated PRs even with prior comments. They need more scrutiny.
+| `PROCEED` | Continue to parallel stages. Existing comments are passed to all review agents to prevent duplication. |
 
 ---
 
@@ -253,7 +257,7 @@ When the dev pushes and asks for re-review:
 - Never create branches
 - Never open issues (that is the dev's job after approval)
 - Never request re-review yourself (let the dev do it)
-- Never post duplicate comments on the same issue
+- Never post a comment on an issue already raised by any prior reviewer or prior self — check the existing comments list from preflight
 - Never approve while MUST FIX items are unresolved
 - Never flag the same pre-existing issue twice
 
