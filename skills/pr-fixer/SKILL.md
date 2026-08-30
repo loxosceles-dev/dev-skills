@@ -27,9 +27,62 @@ If you are about to post a new review comment and you have not read `pr-reviewer
 
 ## Workflow
 
-1. **Triage** — Read all comments first. For each one, write a brief description of what needs to change (one line is enough). This becomes your working checklist.
+1. **Triage** — Read all comments first. For each one, decide: fix now, or defer with an issue. Write your decision and one-line rationale on each item. This becomes your working checklist.
 2. **Work one by one** — Pick a comment, fix it, test it, commit it. Then move to the next. Do not batch fixes across comments.
 3. **Reply** — After each fix is committed, reply to that comment thread with the commit hash and a brief explanation.
+
+---
+
+## 🚨 Every comment must receive an inline reply — no exceptions
+
+**A comment with no reply is treated as completely unaddressed and will re-enter the pipeline.**
+
+This applies even to deferred or rejected items. If you do not reply inline with either a commit hash or a tracked issue link, the comment is considered open. The reviewer will not assume silence means resolution.
+
+---
+
+## Fix vs. defer decision
+
+The default is to fix. Apply judgment to decide otherwise. For each comment, ask:
+
+**Fix it if:**
+- The change is low-friction and low-risk (rename, extract, reformat, add a guard, adjust error handling)
+- The correct solution is clear from the codebase
+- The cost of not fixing it now is higher than the cost of doing it
+
+**Defer with an issue if:**
+- Fixing it correctly requires investigation you cannot complete in this PR (e.g., needs profiling, needs a design decision, touches an area you haven't read)
+- The fix is correct in principle but the scope is significantly larger than the PR it belongs to
+- The fix introduces new coupling, new dependencies, or new risk that wasn't in the original change
+
+**Do not fix and do not defer if:**
+- The comment is factually incorrect and the existing code is right — explain why in the reply
+- The suggestion conflicts with a documented pattern in this repo — cite the pattern
+
+When you write your triage checklist, state the reason explicitly:
+- "Minor rename — fixing, trivial risk"
+- "Requires profiling to know if the optimization matters — deferring to issue"
+- "Reviewer misread the intent — explaining in reply, no change needed"
+
+---
+
+## 🚨 Committing — mandatory gate
+
+**Before every commit in this workflow, you MUST follow the `git-commits` skill exactly.** Read it before you commit anything.
+
+This is not optional. The most common failure mode is skipping this step and producing:
+- Wrong commit message format (no scope in parentheses, imperative form, single line)
+- Missing pre-commit checks (security, code quality, breakage verification)
+- Linting errors that break the branch
+
+The gate:
+1. Run the `pre-commit-check` skill on staged files — security, quality, breakage
+2. Format the commit message per `git-commits`: `<type>: <Description>` — single line, capital letter, imperative, NO scope
+3. Only then commit
+
+**If pre-commit-check finds issues: fix them before committing.** Do not commit a broken state just to reply to a thread.
+
+**Never use `--no-verify` or `-n`.** If a hook blocks a commit, the hook is correct. Fix the issue the hook flagged — do not bypass it. `--no-verify` is how linting failures silently land in branches.
 
 ---
 
