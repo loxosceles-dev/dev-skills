@@ -31,10 +31,21 @@ A review cycle is: you comment → dev pushes changes → you re-review → repe
 
 ---
 
+## Composition
+
+This skill has two entry modes:
+
+- Standalone PR review: run the full pipeline below.
+- Composed under `code-reviewer`: `preflight` still runs first, but if the caller already produced Standards and Spec findings with `.kiro/skills/code-review/SKILL.md` against the same PR diff, skip this skill's `standards` and `spec` stages. Reuse those findings, then run `bug-detector`, `logic-security`, `validation`, and `post`.
+
+Never run two independent Standards and Spec passes against the same diff. That creates duplicate comments and conflicting verdicts.
+
+---
+
 ## Pipeline
 
 ```
-preflight → standards+spec (parallel) → 4-agent-review (parallel) → validation (parallel per issue) → post
+preflight -> standards + spec + bug-detector + logic-security (parallel) -> validation (parallel per issue) -> post
 ```
 
 | Stage | Role | Model | Trigger |
@@ -64,10 +75,9 @@ stages:
 
       If all pass, output: PROCEED
       Then fetch and output:
-        gh pr view <PR_NUMBER> --json title,body,headRefSha,baseRefName,headRefName,files
+        gh pr view <PR_NUMBER> --json title,body,headRefOid,baseRefName,headRefName,files,comments,reviews
         gh pr diff <PR_NUMBER>
-        gh pr review <PR_NUMBER> --json comments,reviews (fetch all existing comments and reviews)
-      Output the full SHA (40 chars) from headRefSha. Never abbreviate it.
+      Output the full SHA (40 chars) from headRefOid. Never abbreviate it.
 
       Summarise existing comments as: [existing] <file:line> — <reviewer> — <summary>
       This list is passed to all review agents so they can behave like a normal reviewer who has read the thread.
@@ -136,7 +146,9 @@ stages:
     model: claude-sonnet-4-5
     depends_on: [standards, spec, bug-detector, logic-security]
     prompt: |
-      You are a validation agent. You receive all findings from the four review agents.
+      You are a validation agent. You receive all findings from the review stages that actually ran.
+      In standalone mode that is standards, spec, bug-detector, and logic-security.
+      When composed under `code-reviewer`, Standards and Spec findings may come from `.kiro/skills/code-review/SKILL.md` instead of this skill's own `standards` and `spec` stages.
       For each issue, confirm ALL of the following — drop the issue if any fail:
         1. The issue is in introduced code, not pre-existing
         2. The flagged code is actually reachable
