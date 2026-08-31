@@ -99,33 +99,63 @@ Role that GitHub Actions can assume, with trust policy restricting access.
     "Action": "sts:AssumeRoleWithWebIdentity",
     "Condition": {
       "StringEquals": {
-        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-      },
-      "StringLike": {
-        "token.actions.githubusercontent.com:sub": "repo:{owner}/{repo}:*"
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+        "token.actions.githubusercontent.com:sub": "repo:{owner}@{userId}/{repo}@{repoId}:ref:refs/heads/{branch}"
       }
     }
   }]
 }
 ```
 
+**⚠️ CRITICAL: Verify the actual `sub` claim before writing the trust policy.**
+
+GitHub's `sub` claim format differs between org repos and personal account repos:
+
+| Repo type | sub format |
+|-----------|-----------|
+| Org repo | `repo:my-org/my-repo:ref:refs/heads/main` |
+| Personal account repo | `repo:username@{userId}/repo@{repoId}:ref:refs/heads/main` |
+
+Personal account repos include **numeric user and repo IDs** — a trust policy using `repo:owner/repo:*` will silently fail for personal repos.
+
+**How to find the exact sub:**
+```bash
+# After a failed OIDC attempt, check CloudTrail:
+aws cloudtrail lookup-events \
+  --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRoleWithWebIdentity \
+  --region {region} \
+  --output json | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for e in data.get('Events', []):
+    t = json.loads(e['CloudTrailEvent'])
+    print(t.get('userIdentity', {}).get('userName', ''))
+"
+```
+
+Use `StringEquals` with the exact literal sub (pinning numeric IDs) — this is more secure than a wildcard because it's immutable even if the repo is renamed.
+
 **Trust Policy Scoping Options**:
 ```
-# All branches and tags
-"repo:owner/repo:*"
+# Org repo — specific branch
+"repo:my-org/my-repo:ref:refs/heads/main"
 
-# Specific branch only
-"repo:owner/repo:ref:refs/heads/main"
+# Personal account repo — specific branch (pin numeric IDs)
+"repo:username@{userId}/repo@{repoId}:ref:refs/heads/main"
 
-# Multiple branches
-["repo:owner/repo:ref:refs/heads/main", "repo:owner/repo:ref:refs/heads/dev"]
+# Personal account repo — multiple refs (use StringLike array)
+["repo:username@{userId}/repo@{repoId}:ref:refs/heads/main",
+ "repo:username@{userId}/repo@{repoId}:ref:refs/heads/dev"]
 
 # Pull requests
 "repo:owner/repo:pull_request"
-
-# Environment-specific
-"repo:owner/repo:environment:production"
 ```
+
+**Best practice: separate roles per environment, scoped to their branch:**
+- dev role → `sub` matches `dev` branch only
+- prod role → `sub` matches `main` branch only
+
+This prevents a compromised dev workflow from deploying to prod.
 
 ### 3. IAM Permissions Policy
 
