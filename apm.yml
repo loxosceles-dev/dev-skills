@@ -2,7 +2,14 @@ name: dev-skills
 version: 1.0.0
 description: Universal coding and project-setup skills, agents, and hooks for all development projects.
 author: loxosceles
-targets: auto
+targets:
+  - kiro
+  - claude
+  - copilot
+  - cursor
+  - codex
+  - opencode
+  - windsurf
 includes: auto
 dependencies:
   apm: []
