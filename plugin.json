@@ -2,13 +2,15 @@
   "name": "dev-skills",
   "version": "1.0.0",
   "description": "Universal coding and project-setup skills, agents, and hooks for all development projects.",
-  "author": { "name": "loxosceles" },
+  "author": {
+    "name": "loxosceles"
+  },
   "license": "UNLICENSED",
   "agents": [
-    "./agents/lead-dev.json",
-    "./agents/code-reviewer.json",
-    "./agents/critic.json",
-    "./agents/planner.json"
+    "./.apm/agents/lead-dev.json",
+    "./.apm/agents/code-reviewer.json",
+    "./.apm/agents/critic.json",
+    "./.apm/agents/planner.json"
   ],
   "skills": [
     "./skills/branch-policy",
