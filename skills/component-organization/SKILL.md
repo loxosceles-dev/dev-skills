@@ -1,6 +1,6 @@
 ---
 name: component-organization
-description: Frontend directory structure and file organization patterns. Apply when creating new components or restructuring frontend code.
+description: "Frontend directory structure and file organization patterns — where components, hooks, lib, and types live. Apply when creating new components or restructuring frontend code. For code quality within those files use frontend-code-quality. For visual design critique use impeccable."
 type: pattern
 ---
 

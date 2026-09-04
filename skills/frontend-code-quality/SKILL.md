@@ -1,6 +1,6 @@
 ---
 name: frontend-code-quality
-description: Essential guidelines for clear, maintainable frontend code. Follow when writing or reviewing frontend components, composables, or pages.
+description: "Essential guidelines for clear, maintainable frontend code — naming, component structure, state management, prop patterns. Follow when writing or reviewing frontend components, composables, or pages. For file/directory layout use component-organization. For visual design, UX, and UI critique use impeccable."
 type: guideline
 ---
 
