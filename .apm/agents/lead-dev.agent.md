@@ -8,7 +8,7 @@ tools:
   - code
   - grep
   - glob
-  - @github
+  - "@github"
   - web_search
   - subagent
   - knowledge

@@ -6,8 +6,8 @@ tools:
   - code
   - grep
   - glob
-  - @github
-  - @safe-shell/exec
+  - "@github"
+  - "@safe-shell/exec"
   - subagent
 ---
 
