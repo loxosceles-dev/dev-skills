@@ -21,8 +21,14 @@ if [[ -z "$SKILL_NAME" ]]; then
   exit 1
 fi
 
-PROJECT_ROOT="$(pwd)"
-SKILL_TARGET="$PROJECT_ROOT/.kiro/skills/$SKILL_NAME"
+# Resolve where .kiro/skills/ lives: project (./apm.lock.yaml) or host (~/.kiro).
+if [[ -f "apm.lock.yaml" ]]; then
+  PROJECT_ROOT="$(pwd)"
+  SKILL_TARGET="$PROJECT_ROOT/.kiro/skills/$SKILL_NAME"
+else
+  PROJECT_ROOT="$HOME/.apm"
+  SKILL_TARGET="$HOME/.kiro/skills/$SKILL_NAME"
+fi
 
 echo ""
 echo "🔍 skill-release: checking '$SKILL_NAME'..."

@@ -33,17 +33,29 @@ __tools/local-skills/        (authoring — host-only skills + agents)
         │  git push to main
         ▼
 github.com/loxosceles/{repo}   (source of truth, SHA-pinned via apm.lock.yaml)
-        │  apm install --frozen
+        │  apm install
         ▼
 apm_modules/                   (downloaded packages, gitignored)
         │
+        │  ── in a project ───────────────────────────────────────────────
         ├─ skills → .kiro/skills/        (Kiro — flat, one dir per skill)
-        │         → .agents/skills/      (Claude Code / Codex / Copilot)
+        │         → .agents/skills/      (Claude Code / Codex / Copilot / opencode)
         │
-        └─ hooks  → .kiro/hooks/         (deployed from .apm/hooks/)
+        │  ── on the host (apm install --global) ─────────────────────────
+        ├─ skills → ~/.apm/.kiro/skills/   (APM output — NOT read by Kiro)
+        │            │
+        │            └── host-sync.sh ──▶ ~/.kiro/skills/  (what Kiro reads)
+        │
+        └─ hooks  → .kiro/hooks/ (project)  or  ~/.apm/.kiro/hooks/ → ~/.kiro/hooks/ (host)
 ```
 
-Skills are deployed **flat** into `~/.kiro/skills/` — one directory per skill, directly under the root. There are no package-name subdirectories.
+**Host vs project is the critical distinction.** `apm install --global` sets the
+APM root to `~/.apm`, so it deploys into `~/.apm/.kiro/`. Kiro reads `~/.kiro/`.
+On the host you must reconcile the two with `host-sync.sh` after every update, or
+updates never reach Kiro. Inside a project, `apm install` deploys straight into
+the project's `.kiro/skills/` and no reconciliation is needed.
+
+Skills are deployed **flat** — one directory per skill, directly under the root. There are no package-name subdirectories.
 
 ### Install command
 
@@ -159,9 +171,51 @@ source ~/.secrets.d/gh.env
 apm update --yes   # re-resolves all SHAs, updates apm.lock.yaml, and installs
 ```
 
-This deploys physical skill files flat to `~/.kiro/skills/<skill-name>/`.
+`apm install --global` writes into `~/.apm/.kiro/`, **not** `~/.kiro/`. After any
+global install or update, reconcile into the tree Kiro actually reads:
+
+```sh
+bash ~/.kiro/skills/skill-sync/host-sync.sh --apply
+```
+
+`apm-safe-update.sh` does this automatically in host mode (it detects host vs
+project by whether `apm.lock.yaml` is in the cwd or at `~/.apm/apm.lock.yaml`).
 
 **The `~/.secrets.d/gh.env` file exports `GH_TOKEN` (not `GITHUB_TOKEN`).**
+
+### Universal vs domain vs local scope
+
+Three scopes, and only the first may be projected into the cross-harness global
+directories (`~/.agents/skills`, `~/.claude/skills` — read by Claude Code, Codex,
+and opencode):
+
+| Scope | Packages | Global cross-harness? |
+|-------|----------|----------------------|
+| Universal coding / agent craft | `dev-skills`, `shared-skills`, `agent-ops-skills`, 3p coding skills (`code-review`, `tdd`, …) | yes |
+| Guitarizta domain | `guitarizta-skills` | Kiro only, and Guitarizta projects |
+| Host-only admin | `local-skills` | `~/.kiro/skills` for the `personal` agent; at `$HOME`; never in projects |
+
+Keep the cross-harness projection correct with:
+
+```sh
+bash ~/.kiro/skills/skill-sync/project-skills.sh --apply --prune   # dry-run by default
+```
+
+It symlinks the universal subset of `~/.kiro/skills` into `~/.agents/skills` and
+`~/.claude/skills`, excluding `guitarizta-skills` and `local-skills`.
+
+### Per-project override
+
+Entering a project folder, the project-local skill directory is read **in
+addition to** (and conceptually before) the home directories:
+
+- **Kiro** — project `.kiro/skills/` + `~/.kiro/skills/`
+- **Claude Code / Codex** — project `.agents/skills/` + `~/.agents/skills/`
+- **opencode** — project `.agents/skills/` / `.opencode/skills/` over
+  `~/.config/opencode/skills` and the `~/.agents` / `~/.claude` compat dirs
+
+This "folder decides what's discovered" model replaces the earlier hard-coded
+agent skill lists, which were brittle and are being removed.
 
 ## Authoring
 

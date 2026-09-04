@@ -17,16 +17,26 @@
 
 set -euo pipefail
 
+# Resolve the APM root. In a project, apm.lock.yaml lives at the repo root.
+# On the host, it lives at ~/.apm/apm.lock.yaml and APM deploys into ~/.apm/.kiro.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HOST_MODE=0
+if [[ -f "apm.lock.yaml" ]]; then
+  APM_ROOT="$(pwd)"
+elif [[ -f "$HOME/.apm/apm.lock.yaml" ]]; then
+  APM_ROOT="$HOME/.apm"
+  HOST_MODE=1
+  cd "$APM_ROOT"
+else
+  echo "❌ No apm.lock.yaml found (project root or ~/.apm)."
+  exit 1
+fi
 LOCK_FILE="apm.lock.yaml"
 
 echo ""
 echo "🔍 apm-safe-update — checking for unpushed local skill edits..."
+echo "   mode: $([[ "$HOST_MODE" -eq 1 ]] && echo host || echo project)  root: $APM_ROOT"
 echo ""
-
-if [[ ! -f "$LOCK_FILE" ]]; then
-  echo "❌ No apm.lock.yaml found. Run from project root."
-  exit 1
-fi
 
 blocked=()
 checked=0
@@ -94,3 +104,15 @@ if [[ -f "$HOME/.secrets.d/gh.env" ]]; then
 fi
 
 apm update --yes
+
+# On the host, APM writes to ~/.apm/.kiro but Kiro reads ~/.kiro.
+# Reconcile so the update actually reaches the live tree.
+if [[ "$HOST_MODE" -eq 1 ]]; then
+  echo ""
+  echo "🔄 Syncing APM output → live Kiro tree..."
+  if [[ -f "$SCRIPT_DIR/host-sync.sh" ]]; then
+    bash "$SCRIPT_DIR/host-sync.sh" --apply
+  else
+    echo "⚠️  host-sync.sh not found next to this script. Run it manually."
+  fi
+fi

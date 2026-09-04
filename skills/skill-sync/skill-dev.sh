@@ -21,9 +21,12 @@ if [[ -z "$SKILL_NAME" ]]; then
   exit 1
 fi
 
-# Resolve project root (where .kiro/skills/ lives)
-PROJECT_ROOT="$(pwd)"
-SKILL_TARGET="$PROJECT_ROOT/.kiro/skills/$SKILL_NAME"
+# Resolve where .kiro/skills/ lives: project (./apm.lock.yaml) or host (~/.kiro).
+if [[ -f "apm.lock.yaml" ]]; then
+  SKILL_TARGET="$(pwd)/.kiro/skills/$SKILL_NAME"
+else
+  SKILL_TARGET="$HOME/.kiro/skills/$SKILL_NAME"
+fi
 
 # Find which repo owns this skill
 REPOS=(dev-skills agent-ops-skills shared-skills guitarizta-skills local-skills)
