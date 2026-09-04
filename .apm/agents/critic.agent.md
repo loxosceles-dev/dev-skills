@@ -3,8 +3,8 @@ name: critic
 description: Adversarial review agent. Finds flaws, wrong assumptions, missing alternatives, bad architecture, sloppy reasoning, and lost context in anything you hand it — code, plans, decisions, designs, pitches, specs.
 tools:
   - read
-  - write
   - shell
+  - write
 ---
 
 ## Skills

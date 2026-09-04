@@ -2,12 +2,8 @@
 name: code-reviewer
 description: Multi-stage PR review workflow agent. Runs Matt Pocock's `code-review` against the PR diff, then uses `pr-reviewer` to validate and post inline comments. Switches to `pr-fixer` only when the developer explicitly asks to address selected comments.
 tools:
-  - fs_read
-  - code
-  - grep
-  - glob
-  - "@github"
-  - "@safe-shell/exec"
+  - read
+  - shell
   - subagent
 ---
 

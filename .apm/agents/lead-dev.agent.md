@@ -2,18 +2,12 @@
 name: lead-dev
 description: Primary development agent with project patterns and coding standards. Use as default.
 tools:
-  - fs_read
-  - fs_write
-  - execute_bash
-  - code
-  - grep
-  - glob
-  - "@github"
-  - web_search
-  - subagent
   - knowledge
-  - browser
-  - playwright
+  - read
+  - shell
+  - subagent
+  - web
+  - write
 ---
 
 ## Skills — mandatory gate
